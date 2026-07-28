@@ -67,6 +67,17 @@ router.post('/api/config', async (req, res) => {
       }
     }
     
+    // Range check: idle timeout must be a sane positive number of minutes
+    // (matches the 1-120 range offered by the config UI).
+    if ('idleTimeoutMinutes' in updates) {
+      const v = updates.idleTimeoutMinutes;
+      if (typeof v !== 'number' || !Number.isFinite(v) || v < 1 || v > 120) {
+        return res.status(400).json({
+          error: `Configuration key 'idleTimeoutMinutes' must be between 1 and 120`
+        });
+      }
+    }
+    
     // Save to store
     await configStore.setMultiple(updates);
     

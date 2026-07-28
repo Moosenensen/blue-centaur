@@ -8,6 +8,7 @@ const VALID_CLIENT_TYPES: ConnectionEventType[] = [
   'client-close',
   'client-error',
   'client-reconnect-attempt',
+  'client-idle-close',
   'client-page-hidden',
   'client-page-visible',
   'client-page-unload',

@@ -441,21 +441,12 @@
                         <h3><span>🎯</span>Enhanced Space Detection</h3>
                         
                         <div class="config-item">
-                            <label for="selfEnoughSpace">Self Enough Space Weight</label>
+                            <label for="selfSpace">Self Space Weight</label>
                             <div class="input-group">
-                                <input type="range" id="selfEnoughSpace_slider" min="-50" max="50" step="1">
-                                <input type="number" id="selfEnoughSpace" min="-50" max="50" step="1">
+                                <input type="range" id="selfSpace_slider" min="-200" max="200" step="1">
+                                <input type="number" id="selfSpace" min="-200" max="200" step="1">
                             </div>
-                            <div class="description">Your snake's space availability (+3 if enough, -3 if trapped)</div>
-                        </div>
-                        
-                        <div class="config-item">
-                            <label for="selfSpaceOptimistic">Self Space Optimistic Weight</label>
-                            <div class="input-group">
-                                <input type="range" id="selfSpaceOptimistic_slider" min="-50" max="50" step="1">
-                                <input type="number" id="selfSpaceOptimistic" min="-50" max="50" step="1">
-                            </div>
-                            <div class="description">Optimistic space (accounts for body segments disappearing over time)</div>
+                            <div class="description">Continuous survival room from the contest-aware conservative region (cells we win the Voronoi race for). sqrt-scaled and length-normalised: room equal to our body length scores 1.0, 4× → 2.0, ¼ → 0.5.</div>
                         </div>
                         
                         <div class="config-item">
@@ -477,6 +468,52 @@
                         </div>
                     </div>
                     
+                    <!-- Offensive Aggression -->
+                    <div class="config-section">
+                        <h3><span>⚔️</span>Offensive Aggression</h3>
+                        
+                        <div class="config-item">
+                            <label for="aggression">Aggression Weight</label>
+                            <div class="input-group">
+                                <input type="range" id="aggression_slider" min="0" max="200" step="1">
+                                <input type="number" id="aggression" min="0" max="200" step="1">
+                            </div>
+                            <div class="description">Reward for hunting enemies we strictly out-invulnerate — closing in on or landing on their head/body. Kept conservative so survival always dominates.</div>
+                        </div>
+
+                        <div class="config-item">
+                            <label for="trapped">Trapped Penalty</label>
+                            <div class="input-group">
+                                <input type="range" id="trapped_slider" min="-2000" max="0" step="10">
+                                <input type="number" id="trapped" min="-2000" max="0" step="10">
+                            </div>
+                            <div class="description">Strongly-negative penalty for moving into a clearly-fatal dead-end pocket — one where we can neither chase our own tail nor fit our length. A hard candidate-level veto also blocks such moves whenever a safe alternative exists.</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Invulnerability Potions -->
+                    <div class="config-section">
+                        <h3><span>🧪</span>Invulnerability Potions</h3>
+
+                        <div class="config-item">
+                            <label for="potionSeeking">Potion Seeking Weight</label>
+                            <div class="input-group">
+                                <input type="range" id="potionSeeking_slider" min="0" max="500" step="5">
+                                <input type="number" id="potionSeeking" min="0" max="500" step="5">
+                            </div>
+                            <div class="description">Reward for drinking invulnerability potions: closeness to the nearest reachable potion (+2 flat while standing on one) plus a bonus for how many potions sit inside the territory we win, so the snake collects clusters rather than one-offs.</div>
+                        </div>
+
+                        <div class="config-item">
+                            <label for="severKill">Sever / Kill Weight</label>
+                            <div class="input-group">
+                                <input type="range" id="severKill_slider" min="0" max="500" step="5">
+                                <input type="number" id="severKill" min="0" max="500" step="5">
+                            </div>
+                            <div class="description">Reward for cutting an enemy we strictly out-invulnerate (we drank a potion, or they took poison). Scored by the fraction of the enemy severed — cutting at the head is a kill, cutting at the tail is worth almost nothing — and only for cuts we can land before our 3-turn invulnerability runs out.</div>
+                        </div>
+                    </div>
+
                     <!-- Centaur Play Mode -->
                     <div class="config-section">
                         <h3><span>🎮</span>Centaur Play Mode</h3>
@@ -490,6 +527,15 @@
                                 </label>
                             </div>
                             <div class="description">When OFF, bots wait for human input on the first turn. When ON, bots play automatically from the very first move (pure bot mode).</div>
+                        </div>
+                        
+                        <div class="config-item">
+                            <label for="idleTimeoutMinutes">Idle Timeout (minutes)</label>
+                            <div class="input-group">
+                                <input type="range" id="idleTimeoutMinutes_slider" min="1" max="120" step="1">
+                                <input type="number" id="idleTimeoutMinutes" min="1" max="120" step="1">
+                            </div>
+                            <div class="description">Minutes without user activity before live pages disconnect and the server is allowed to scale to zero. Server picks up changes within ~1 minute; pages read it on load.</div>
                         </div>
                     </div>
                     
@@ -546,11 +592,14 @@
             'foodProximity', 'foodEaten',
             'enemyTerritory', 'enemyLength',
             'edgePenalty',
-            'selfEnoughSpace', 'selfSpaceOptimistic', 'alliesEnoughSpace', 'opponentsEnoughSpace',
+            'selfSpace', 'alliesEnoughSpace', 'opponentsEnoughSpace',
             'kills', 'deaths',
             'enemyH2HRisk', 'allyH2HRisk',
             'waypointGoto', 'waypointNear',
-            'maxSimulationDepth', 'timeoutMs', 'nearbyDistance'
+            'aggression', 'trapped',
+            'potionSeeking', 'severKill',
+            'maxSimulationDepth', 'timeoutMs', 'nearbyDistance',
+            'idleTimeoutMinutes'
         ];
         
         const booleanConfigKeys = ['autoFirstMove'];
@@ -614,6 +663,20 @@
                         } else if (key === 'enemyH2HRisk' || key === 'allyH2HRisk') {
                             slider.min = -500;
                             slider.max = 0;
+                        } else if (key === 'aggression') {
+                            slider.min = 0;
+                            slider.max = 200;
+                        } else if (key === 'potionSeeking' || key === 'severKill') {
+                            slider.min = 0;
+                            slider.max = 500;
+                            slider.step = 5;
+                        } else if (key === 'trapped') {
+                            slider.min = -2000;
+                            slider.max = 0;
+                            slider.step = 10;
+                        } else if (key === 'selfSpace') {
+                            slider.min = -200;
+                            slider.max = 200;
                         } else if (key === 'kills' || key === 'foodEaten') {
                             slider.max = 500;
                         } else if (key === 'waypointGoto' || key === 'waypointNear') {

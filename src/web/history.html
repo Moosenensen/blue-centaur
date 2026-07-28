@@ -5,741 +5,142 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Game History</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
       background-color: #1a1a1a;
       color: #e0e0e0;
-      overflow-x: hidden;
       padding-top: 60px;
     }
-    
     .header {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 60px;
-      background: #2a2a2a;
-      border-bottom: 1px solid #444;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 15px;
-      z-index: 1000;
+      position: fixed; top: 0; left: 0; right: 0; height: 60px;
+      background: #2a2a2a; border-bottom: 1px solid #444;
+      display: flex; align-items: center; justify-content: center;
+      padding: 0 15px; z-index: 1000;
     }
-    
-    .header h1 {
-      font-size: 20px;
-      font-weight: 600;
-      flex: 1;
-      text-align: center;
+    .header h1 { font-size: 20px; font-weight: 600; }
+    .nav-links { position: absolute; right: 15px; display: flex; gap: 10px; }
+    .nav-links a {
+      color: #4CAF50; text-decoration: none; font-size: 14px;
+      padding: 6px 12px; border-radius: 4px; background: #333;
     }
-    
-    .menu-button {
-      background: #444;
-      border: none;
-      color: white;
-      padding: 8px 12px;
-      border-radius: 6px;
-      font-size: 24px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 40px;
-      height: 40px;
-    }
-    
-    .menu-button:hover {
-      background: #555;
-    }
-    
-    .game-list-overlay {
-      position: fixed;
-      top: 60px;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.5);
-      z-index: 900;
-      display: none;
-    }
-    
-    .game-list-overlay.active {
-      display: block;
-    }
-    
-    .game-list {
-      position: fixed;
-      top: 60px;
-      left: -100%;
-      width: 85%;
-      max-width: 350px;
-      bottom: 0;
-      background: #2a2a2a;
-      border-right: 1px solid #444;
-      transition: left 0.3s ease;
-      z-index: 950;
-      overflow-y: auto;
-    }
-    
-    .game-list.active {
-      left: 0;
-    }
-    
-    .game-item {
-      padding: 15px;
-      border-bottom: 1px solid #444;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    
-    .game-item:hover {
-      background: #333;
-    }
-    
-    .game-item.active {
-      background: #3a4a5a;
-      border-left: 3px solid #4CAF50;
-    }
-    
-    .game-item-header {
-      font-weight: 600;
-      margin-bottom: 4px;
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-    }
-    
-    .game-item-id {
-      font-size: 10px;
-      color: #888;
-      font-weight: normal;
-    }
-    
-    .game-item-details {
-      font-size: 12px;
-      color: #888;
-      line-height: 1.4;
-    }
-    
-    .main-content {
-      padding: 20px 15px;
-      max-width: 100%;
-      margin: 0 auto;
-    }
-    
-    .board-container {
-      background: #2a2a2a;
-      border-radius: 8px;
-      padding: 15px;
+    .nav-links a:hover { background: #444; }
+    .main-content { max-width: 1200px; margin: 0 auto; padding: 20px 15px; }
+    .status-bar {
+      background: #2a2a2a; border-radius: 8px; padding: 15px;
       margin-bottom: 20px;
     }
-    
-    .board-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+    .status-text { font-size: 14px; color: #888; }
+    .no-games { text-align: center; padding: 60px 20px; color: #666; }
+    .no-games h2 { font-size: 24px; margin-bottom: 10px; }
+    .no-games p { font-size: 14px; line-height: 1.6; }
+    .game-card {
+      background: #2a2a2a; border-radius: 8px; padding: 15px;
+      border: 1px solid #444; cursor: pointer; transition: all 0.2s;
       margin-bottom: 15px;
     }
-    
-    .turn-info {
-      font-size: 16px;
-      font-weight: 600;
+    .game-card:hover { border-color: #4CAF50; transform: translateY(-2px); }
+    .game-card-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 8px;
     }
-    
-    .health-display {
-      font-size: 14px;
-      color: #4CAF50;
+    .game-card-team { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; }
+    .team-swatch { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+    .game-card-time { font-size: 12px; color: #4CAF50; white-space: nowrap; }
+    .game-card-id { font-size: 11px; color: #666; word-break: break-all; margin-bottom: 8px; }
+    .game-card-meta { font-size: 12px; color: #888; margin-bottom: 10px; }
+    .game-card-snakes { display: flex; flex-wrap: wrap; gap: 8px; }
+    .snake-tag {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: #333; padding: 4px 10px; border-radius: 12px;
+      font-size: 13px; border: 1px solid #555;
     }
-    
-    .canvas-wrapper {
-      width: 100%;
-      display: flex;
-      justify-content: center;
-      margin-bottom: 15px;
-      position: relative;
-    }
-    
-    #gameCanvas {
-      border: 2px solid #888;
-      background: #ffffff;
-      max-width: 100%;
-      height: auto;
-    }
-    
-    #boardOverlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      pointer-events: none;
-    }
-    
-    .cell-button {
-      position: absolute;
-      background: transparent;
-      border: none;
-      cursor: pointer;
-      pointer-events: auto;
-      transition: all 0.2s;
-    }
-    
-    .cell-button:hover {
-      background: rgba(255, 255, 255, 0.1);
-    }
-    
-    .snake-info-container {
-      margin-bottom: 20px;
-    }
-    
-    .snake-info-list {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 10px;
-    }
-    
-    .snake-info-item {
-      background: #2a2a2a;
-      border-radius: 6px;
-      padding: 10px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    
-    .snake-color-box {
-      width: 24px;
-      height: 24px;
-      border-radius: 4px;
-      border: 2px solid #444;
-      flex-shrink: 0;
-    }
-    
-    .snake-details {
-      flex: 1;
-      min-width: 0;
-    }
-    
-    .snake-name {
-      font-weight: 600;
-      font-size: 14px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    
-    .snake-stats {
-      font-size: 12px;
-      color: #888;
-      display: flex;
-      gap: 8px;
-    }
-    
-    .turn-controls {
-      background: #2a2a2a;
-      border-radius: 8px;
-      padding: 15px;
-      margin-bottom: 20px;
-    }
-    
-    .turn-slider {
-      width: 100%;
-      margin: 10px 0;
-    }
-    
-    .control-buttons {
-      display: flex;
-      justify-content: center;
-      gap: 10px;
-      margin-top: 10px;
-    }
-    
-    .control-buttons button {
-      background: #444;
-      color: white;
-      border: none;
-      padding: 8px 16px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-    
-    .control-buttons button:hover {
-      background: #555;
-    }
-    
-    .move-selection {
-      background: #2a2a2a;
-      border-radius: 8px;
-      padding: 15px;
-      margin-bottom: 20px;
-    }
-    
-    .move-selection h3 {
-      font-size: 16px;
-      margin-bottom: 10px;
-      color: #4CAF50;
-    }
-    
-    .move-buttons {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      grid-template-rows: 1fr 1fr;
-      gap: 10px;
-      max-width: 300px;
-      margin: 0 auto;
-    }
-    
-    .move-button {
-      padding: 10px;
-      background: #333;
-      color: white;
-      border: 2px solid #444;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 14px;
-      text-align: center;
-      transition: all 0.2s;
-    }
-    
-    .move-button:hover:not(:disabled) {
-      background: #444;
-    }
-    
-    .move-button.selected {
-      background: rgba(156, 39, 176, 0.2) !important;
-      border: 5px solid #9C27B0 !important;
-      box-shadow: 0 0 15px rgba(156, 39, 176, 0.8), inset 0 0 10px rgba(156, 39, 176, 0.3) !important;
-      z-index: 10;
-      position: relative;
-    }
-    
-    .move-button.chosen {
-      background: #2a5a2a;
-      border-color: #4CAF50;
-      font-weight: 600;
-    }
-    
-    .move-button:disabled {
-      opacity: 0.3;
-      cursor: not-allowed;
-    }
-    
-    .move-button.not-evaluated {
-      background: #2a2a2a;
-      color: #666;
-    }
-    
-    .move-button .score {
-      font-size: 12px;
-      color: #aaa;
-      display: block;
-      margin-top: 4px;
-    }
-    
-    .decision-stats {
-      background: #2a2a2a;
-      border-radius: 8px;
-      padding: 15px;
-      overflow-x: auto;
-    }
-    
-    .decision-stats h3 {
-      font-size: 16px;
-      margin-bottom: 10px;
-      color: #4CAF50;
-    }
-    
-    .stats-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 14px;
-    }
-    
-    .stats-table th,
-    .stats-table td {
-      padding: 8px;
-      text-align: left;
-      border-bottom: 1px solid #444;
-    }
-    
-    .stats-table th {
-      background: #333;
-      font-weight: 600;
-    }
-    
-    .stats-table tr:last-child td {
-      border-bottom: none;
-    }
-    
-    .stats-table .total-row {
-      font-weight: 600;
-      background: #333;
-    }
-    
-    .loading {
-      text-align: center;
-      padding: 40px;
-      color: #888;
-    }
-    
-    @media (min-width: 768px) {
-      .main-content {
-        max-width: 1200px;
-        padding: 20px;
-      }
-      
-      .game-list {
-        width: 320px;
-      }
-      
-      .board-container {
-        display: flex;
-        gap: 20px;
-      }
-      
-      .board-left {
-        flex: 1;
-      }
-      
-      .board-right {
-        width: 300px;
-      }
-      
-      #gameCanvas {
-        max-width: 600px;
-      }
-    }
-    
-    input[type="range"] {
-      -webkit-appearance: none;
-      width: 100%;
-      height: 6px;
-      border-radius: 3px;
-      background: #444;
-      outline: none;
-    }
-    
-    input[type="range"]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: #4CAF50;
-      cursor: pointer;
-    }
-    
-    input[type="range"]::-moz-range-thumb {
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: #4CAF50;
-      cursor: pointer;
-    }
+    .snake-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    .loading { text-align: center; padding: 40px; color: #888; }
   </style>
 </head>
 <body>
   <div class="header">
-    <button class="menu-button" onclick="toggleGameList()">☰</button>
     <h1>Game History</h1>
-    <div style="width: 40px;"></div>
+    <div class="nav-links">
+      <a href="/play">Play</a>
+      <a href="/config">Config</a>
+    </div>
   </div>
-  
-  <div class="game-list-overlay" onclick="closeGameList()"></div>
-  <div class="game-list" id="gameList">
-    <div class="loading">Loading games...</div>
-  </div>
-  
+
   <div class="main-content">
-    <div class="board-container">
-      <div class="board-left">
-        <div class="board-header">
-          <div class="turn-info">Turn: <span id="currentTurn">0</span> / <span id="totalTurns">0</span></div>
-          <div class="health-display">Health: <span id="healthDisplay">100</span></div>
-        </div>
-        
-        <div class="canvas-wrapper">
-          <canvas id="gameCanvas" width="550" height="550"></canvas>
-          <div id="boardOverlay"></div>
-        </div>
-      </div>
+    <div class="status-bar">
+      <span class="status-text" id="statusText">Loading recorded games...</span>
     </div>
-    
-    <div class="snake-info-container">
-      <div class="snake-info-list" id="snakeInfoList"></div>
-    </div>
-    
-    <div class="turn-controls">
-      <input type="range" id="turnSlider" class="turn-slider" min="0" max="0" value="0">
-      <div class="control-buttons">
-        <button onclick="previousTurn()">◀ Previous</button>
-        <button onclick="togglePlay()" id="playButton">▶ Play</button>
-        <button onclick="nextTurn()">Next ▶</button>
-        <button onclick="copyMoveJson()" id="copyJsonButton">📋 Copy /move JSON</button>
-      </div>
-    </div>
-    
-    <div class="move-selection">
-      <h3>Move Analysis</h3>
-      <div class="move-buttons" id="moveButtons"></div>
-    </div>
-    
-    <div class="decision-stats">
-      <h3>Decision Breakdown</h3>
-      <div id="statsTableContainer">
-        <table class="stats-table">
-          <thead>
-            <tr>
-              <th>Component</th>
-              <th>Value</th>
-              <th>Weight</th>
-              <th>Weighted</th>
-              <th>Impact</th>
-            </tr>
-          </thead>
-          <tbody id="statsTableBody">
-            <tr>
-              <td colspan="5" style="text-align: center; color: #888;">Select a move to see breakdown</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+    <div id="gameContainer">
+      <div class="loading">Loading...</div>
     </div>
   </div>
-  
-  <script src="/board-renderer.js"></script>
+
   <script>
-    let currentGame = null;
-    let currentTurn = 0;
-    let turnData = [];
-    let playInterval = null;
-    let moveState = {
-      selectedMove: null,
-      moves: {},
-      safeMoves: [],
-      territoryCells: {},
-      selectedSnake: null
-    };
-    
-    function toggleGameList() {
-      document.getElementById('gameList').classList.toggle('active');
-      document.querySelector('.game-list-overlay').classList.toggle('active');
+    function escapeHtml(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[c]);
     }
-    
-    function closeGameList() {
-      document.getElementById('gameList').classList.remove('active');
-      document.querySelector('.game-list-overlay').classList.remove('active');
+
+    function openGame(gameId) {
+      window.location.href = `/game/${encodeURIComponent(gameId)}`;
     }
-    
-    async function loadGames(autoLoadMostRecent = true) {
+
+    async function loadGames() {
+      const container = document.getElementById('gameContainer');
+      const status = document.getElementById('statusText');
       try {
-        const response = await fetch('/api/logs/games');
-        const games = await response.json();
-        const gameList = document.getElementById('gameList');
-        
-        if (games.length === 0) {
-          gameList.innerHTML = '<div class="loading">No games recorded yet</div>';
+        const resp = await fetch('/api/logs/games');
+        const games = await resp.json();
+
+        if (!Array.isArray(games) || games.length === 0) {
+          status.textContent = 'No recorded games yet';
+          container.innerHTML =
+            '<div class="no-games"><h2>No recorded games</h2>' +
+            '<p>Finished games with decision logs will appear here.</p></div>';
           return;
         }
-        
-        gameList.innerHTML = games.map(game => {
-          const timestamp = game.timestamp ? new Date(game.timestamp).toLocaleString() : 'No timestamp';
-          return `
-            <div class="game-item" data-game-id="${game.game_id}" data-snake-id="${game.snake_id}" 
-                 onclick="loadGame('${game.game_id}', '${game.snake_id}', '${game.snake_name || 'Unknown'}')">
-              <div class="game-item-header">
-                <span>${game.snake_name || 'Unknown Snake'}</span>
-              </div>
-              <div class="game-item-details">
-                <span style="font-size: 0.85em; color: #888;">Snake: ${game.snake_id}</span><br>
-                Game: ${game.game_id}<br>
-                Turns: ${game.turns}<br>
-                ${timestamp}
-              </div>
-            </div>
-          `;
-        }).join('');
-        
-        if (autoLoadMostRecent && games.length > 0) {
-          const mostRecent = games[0];
-          loadGame(mostRecent.game_id, mostRecent.snake_id, mostRecent.snake_name || 'Unknown');
-        }
-      } catch (error) {
-        console.error('Error loading games:', error);
+
+        status.textContent = `${games.length} recorded game${games.length === 1 ? '' : 's'}`;
+        container.innerHTML = games.map(renderGameCard).join('');
+      } catch (err) {
+        console.error('Error loading games:', err);
+        status.textContent = 'Failed to load recorded games';
+        container.innerHTML =
+          '<div class="no-games"><h2>Error</h2><p>Could not load recorded games.</p></div>';
       }
-    }
-    
-    async function loadGame(gameId, snakeId, snakeName) {
-      currentGame = gameId;
-      closeGameList();
-      
-      document.querySelectorAll('.game-item').forEach(item => {
-        item.classList.remove('active');
-        if (item.dataset.gameId === gameId && item.dataset.snakeId === snakeId) {
-          item.classList.add('active');
-        }
-      });
-      
-      try {
-        const response = await fetch(`/api/logs?game_id=${gameId}&snake_id=${snakeId}`);
-        const data = await response.json();
-        
-        if (data.decisions && data.decisions.length > 0) {
-          turnData = data.decisions;
-          currentTurn = 0;
-          const slider = document.getElementById('turnSlider');
-          slider.max = turnData.length - 1;
-          slider.value = 0;
-          document.getElementById('totalTurns').textContent = turnData.length;
-          renderTurn(0);
-        }
-      } catch (error) {
-        console.error('Error loading game:', error);
-      }
-    }
-    
-    function handleCanvasClick(event) {
-      if (!turnData || currentTurn < 0 || currentTurn >= turnData.length) return;
-      const turn = turnData[currentTurn];
-      const canvas = document.getElementById('gameCanvas');
-      const rect = canvas.getBoundingClientRect();
-      const board = turn.game_state.board;
-      const cellSize = Math.min(canvas.width / board.width, canvas.height / board.height);
-      const clickX = event.clientX - rect.left;
-      const clickY = event.clientY - rect.top;
-      const boardX = Math.floor(clickX / cellSize);
-      const boardY = board.height - 1 - Math.floor(clickY / cellSize);
-      
-      let clickedSnake = null;
-      for (const [snakeId, cells] of Object.entries(moveState.territoryCells)) {
-        if (cells && cells.some(c => c.x === boardX && c.y === boardY)) {
-          clickedSnake = snakeId;
-          break;
-        }
-      }
-      
-      if (clickedSnake) {
-        moveState.selectedSnake = (moveState.selectedSnake === clickedSnake) ? null : clickedSnake;
-        renderBoardView(turn);
-      } else if (moveState.selectedSnake) {
-        moveState.selectedSnake = null;
-        renderBoardView(turn);
-      }
-    }
-    
-    function renderTurn(turnIndex) {
-      if (!turnData || turnIndex < 0 || turnIndex >= turnData.length) return;
-      const turn = turnData[turnIndex];
-      currentTurn = turnIndex;
-      
-      moveState = BoardRenderer.processMoveEvaluations(
-        turn.move_evaluations, turn.safe_moves, turn.game_state.you.head, turn.chosen_move
-      );
-      
-      document.getElementById('currentTurn').textContent = turn.turn;
-      document.getElementById('turnSlider').value = turnIndex;
-      document.getElementById('healthDisplay').textContent = turn.health;
-      
-      renderBoardView(turn);
-      BoardRenderer.renderSnakeInfo(document.getElementById('snakeInfoList'), turn.game_state, turn.snake_id);
-      BoardRenderer.renderMoveButtons(document.getElementById('moveButtons'), moveState, selectMove);
-      
-      moveState.selectedMove = null;
-      moveState.selectedSnake = null;
-      BoardRenderer.updateStatsTable(document.getElementById('statsTableBody'), null, moveState);
-    }
-    
-    function renderBoardView(turn) {
-      const canvas = document.getElementById('gameCanvas');
-      BoardRenderer.renderBoard(canvas, turn.game_state, moveState, {
-        snakeId: turn.snake_id,
-        chosenMove: turn.chosen_move,
-        showChosenArrow: true
-      });
-      BoardRenderer.createBoardOverlay(
-        document.getElementById('boardOverlay'), canvas, turn.game_state.board, moveState, selectMove
-      );
-    }
-    
-    function selectMove(direction) {
-      moveState.selectedMove = direction;
-      const turn = turnData[currentTurn];
-      BoardRenderer.renderMoveButtons(document.getElementById('moveButtons'), moveState, selectMove);
-      renderBoardView(turn);
-      const move = moveState.moves[direction];
-      if (move) {
-        BoardRenderer.updateStatsTable(document.getElementById('statsTableBody'), move, moveState);
-      }
-    }
-    
-    function previousTurn() {
-      if (currentTurn > 0) renderTurn(currentTurn - 1);
-    }
-    
-    function nextTurn() {
-      if (currentTurn < turnData.length - 1) renderTurn(currentTurn + 1);
     }
 
-    let copyJsonTimeout = null;
-    const COPY_JSON_LABEL = '📋 Copy /move JSON';
+    function renderGameCard(group) {
+      const timestamp = group.timestamp
+        ? new Date(group.timestamp).toLocaleString()
+        : '';
+      const teamSwatch = group.team_color
+        ? `<span class="team-swatch" style="background-color:${escapeHtml(group.team_color)};"></span>`
+        : '';
+      const snakeTags = (group.snakes || []).map((s) => {
+        const dot = s.color
+          ? `<span class="snake-dot" style="background-color:${escapeHtml(s.color)};"></span>`
+          : '';
+        const len = s.length != null ? ` \u{1F4CF}${s.length}` : '';
+        return `<span class="snake-tag">${dot}${escapeHtml(s.snake_name || 'Snake')}${len}</span>`;
+      }).join('');
 
-    function copyMoveJson() {
-      const turn = turnData[currentTurn];
-      if (!turn || !turn.game_state) return;
-      const btn = document.getElementById('copyJsonButton');
-      const json = JSON.stringify(turn.game_state, null, 2);
-      if (copyJsonTimeout) clearTimeout(copyJsonTimeout);
-      navigator.clipboard.writeText(json).then(() => {
-        btn.textContent = '✅ Copied!';
-      }).catch(() => {
-        btn.textContent = '❌ Failed';
-      }).finally(() => {
-        copyJsonTimeout = setTimeout(() => { btn.textContent = COPY_JSON_LABEL; }, 1500);
-      });
+      return `
+        <div class="game-card" onclick="openGame('${escapeHtml(group.game_id)}')">
+          <div class="game-card-header">
+            <span class="game-card-team">${teamSwatch}${escapeHtml(group.team_label || 'Team')}</span>
+            ${timestamp ? `<span class="game-card-time">${escapeHtml(timestamp)}</span>` : ''}
+          </div>
+          <div class="game-card-id">${escapeHtml(group.game_id)}</div>
+          <div class="game-card-meta">Turns: ${escapeHtml(group.turns)}</div>
+          <div class="game-card-snakes">${snakeTags}</div>
+        </div>
+      `;
     }
-    
-    function togglePlay() {
-      const button = document.getElementById('playButton');
-      if (playInterval) {
-        clearInterval(playInterval);
-        playInterval = null;
-        button.textContent = '▶ Play';
-      } else {
-        button.textContent = '⏸ Pause';
-        playInterval = setInterval(() => {
-          if (currentTurn < turnData.length - 1) {
-            renderTurn(currentTurn + 1);
-          } else {
-            clearInterval(playInterval);
-            playInterval = null;
-            button.textContent = '▶ Play';
-          }
-        }, 500);
-      }
-    }
-    
-    document.getElementById('turnSlider').addEventListener('input', (e) => {
-      renderTurn(parseInt(e.target.value));
-    });
-    
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowLeft') previousTurn();
-      if (e.key === 'ArrowRight') nextTurn();
-      if (e.key === ' ') {
-        e.preventDefault();
-        togglePlay();
-      }
-    });
-    
-    document.getElementById('gameCanvas').addEventListener('click', handleCanvasClick);
-    
+
     loadGames();
   </script>
 </body>

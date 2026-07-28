@@ -1,56 +1,32 @@
-import { Pool } from 'pg';
+import { sql } from 'drizzle-orm';
+import { db } from '../database/db';
+import { configStore } from '../database/schema';
 
 /**
- * Configuration store using PostgreSQL database
- * Stores configuration values as key-value pairs in a simple table
+ * Configuration store using PostgreSQL via Drizzle.
+ * Stores configuration values as key-value pairs in the config_store table.
+ * The schema is managed by Drizzle (db:push / Publish diff); this class assumes
+ * the table already exists.
  */
 export class ConfigStore {
-  private pool: Pool;
-
-  constructor() {
-    // Use the existing database connection
-    this.pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined
-    });
-    
-    // Initialize the config table if it doesn't exist
-    this.initTable();
-  }
-
-  /**
-   * Initialize the configuration table if it doesn't exist
-   */
-  private async initTable(): Promise<void> {
-    try {
-      await this.pool.query(`
-        CREATE TABLE IF NOT EXISTS config_store (
-          key VARCHAR(255) PRIMARY KEY,
-          value TEXT NOT NULL,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
-    } catch (error) {
-      console.error('Error creating config table:', error);
-    }
-  }
-
   /**
    * Get all configuration values
    */
   async getAll(): Promise<Record<string, any>> {
     try {
-      const result = await this.pool.query('SELECT key, value FROM config_store');
+      const rows = await db
+        .select({ key: configStore.key, value: configStore.value })
+        .from(configStore);
       const config: Record<string, any> = {};
-      
-      for (const row of result.rows) {
+
+      for (const row of rows) {
         try {
           config[row.key] = JSON.parse(row.value);
         } catch {
           config[row.key] = row.value;
         }
       }
-      
+
       return config;
     } catch (error) {
       console.error('Error reading config from database:', error);
@@ -64,13 +40,13 @@ export class ConfigStore {
   async set(key: string, value: any): Promise<void> {
     try {
       const jsonValue = JSON.stringify(value);
-      await this.pool.query(
-        `INSERT INTO config_store (key, value, updated_at) 
-         VALUES ($1, $2, CURRENT_TIMESTAMP)
-         ON CONFLICT (key) 
-         DO UPDATE SET value = $2, updated_at = CURRENT_TIMESTAMP`,
-        [key, jsonValue]
-      );
+      await db
+        .insert(configStore)
+        .values({ key, value: jsonValue, updatedAt: new Date() })
+        .onConflictDoUpdate({
+          target: configStore.key,
+          set: { value: jsonValue, updatedAt: new Date() },
+        });
       console.log(`Config updated: ${key} = ${value}`);
     } catch (error) {
       console.error('Error saving config to database:', error);
@@ -82,29 +58,23 @@ export class ConfigStore {
    * Set multiple configuration values at once
    */
   async setMultiple(updates: Record<string, any>): Promise<void> {
-    const client = await this.pool.connect();
     try {
-      await client.query('BEGIN');
-      
-      for (const [key, value] of Object.entries(updates)) {
-        const jsonValue = JSON.stringify(value);
-        await client.query(
-          `INSERT INTO config_store (key, value, updated_at) 
-           VALUES ($1, $2, CURRENT_TIMESTAMP)
-           ON CONFLICT (key) 
-           DO UPDATE SET value = $2, updated_at = CURRENT_TIMESTAMP`,
-          [key, jsonValue]
-        );
-      }
-      
-      await client.query('COMMIT');
+      await db.transaction(async tx => {
+        for (const [key, value] of Object.entries(updates)) {
+          const jsonValue = JSON.stringify(value);
+          await tx
+            .insert(configStore)
+            .values({ key, value: jsonValue, updatedAt: new Date() })
+            .onConflictDoUpdate({
+              target: configStore.key,
+              set: { value: jsonValue, updatedAt: new Date() },
+            });
+        }
+      });
       console.log(`Config updated with ${Object.keys(updates).length} values`);
     } catch (error) {
-      await client.query('ROLLBACK');
       console.error('Error saving config to database:', error);
       throw error;
-    } finally {
-      client.release();
     }
   }
 
@@ -113,19 +83,19 @@ export class ConfigStore {
    */
   async get(key: string): Promise<any> {
     try {
-      const result = await this.pool.query(
-        'SELECT value FROM config_store WHERE key = $1',
-        [key]
-      );
-      
-      if (result.rows.length === 0) {
+      const rows = await db
+        .select({ value: configStore.value })
+        .from(configStore)
+        .where(sql`${configStore.key} = ${key}`);
+
+      if (rows.length === 0) {
         return undefined;
       }
-      
+
       try {
-        return JSON.parse(result.rows[0].value);
+        return JSON.parse(rows[0].value);
       } catch {
-        return result.rows[0].value;
+        return rows[0].value;
       }
     } catch (error) {
       console.error('Error getting config from database:', error);
@@ -138,7 +108,7 @@ export class ConfigStore {
    */
   async clear(): Promise<void> {
     try {
-      await this.pool.query('DELETE FROM config_store');
+      await db.delete(configStore);
       console.log('Config cleared');
     } catch (error) {
       console.error('Error clearing config:', error);

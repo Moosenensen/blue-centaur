@@ -72,8 +72,7 @@ export class VoronoiStrategy {
       enemyTerritory: config.enemyTerritory,
       enemyLength: config.enemyLength,
       edgePenalty: config.edgePenalty,
-      selfEnoughSpace: config.selfEnoughSpace,
-      selfSpaceOptimistic: config.selfSpaceOptimistic,
+      selfSpace: config.selfSpace,
       alliesEnoughSpace: config.alliesEnoughSpace,
       opponentsEnoughSpace: config.opponentsEnoughSpace,
       kills: config.kills,
@@ -81,7 +80,11 @@ export class VoronoiStrategy {
       enemyH2HRisk: config.enemyH2HRisk,
       allyH2HRisk: config.allyH2HRisk,
       waypointGoto: config.waypointGoto,
-      waypointNear: config.waypointNear
+      waypointNear: config.waypointNear,
+      aggression: config.aggression,
+      potionSeeking: config.potionSeeking,
+      severKill: config.severKill,
+      trapped: config.trapped
     };
   }
   
@@ -120,10 +123,9 @@ export class VoronoiStrategy {
       enemyTerritory: parseFloat(process.env.WEIGHT_ENEMY_TERRITORY || '0'),
       enemyLength: parseFloat(process.env.WEIGHT_ENEMY_LENGTH || '0'),
       edgePenalty: parseFloat(process.env.WEIGHT_EDGE_PENALTY || '0'),
-      selfEnoughSpace: parseFloat(process.env.WEIGHT_SELF_ENOUGH_SPACE || '20'),
-      selfSpaceOptimistic: parseFloat(process.env.WEIGHT_SELF_SPACE_OPTIMISTIC || '5'),
-      alliesEnoughSpace: parseFloat(process.env.WEIGHT_ALLIES_ENOUGH_SPACE || '10'),
-      opponentsEnoughSpace: parseFloat(process.env.WEIGHT_OPPONENTS_ENOUGH_SPACE || '-15'),
+      selfSpace: parseFloat(process.env.WEIGHT_SELF_SPACE || '120'),
+      alliesEnoughSpace: parseFloat(process.env.WEIGHT_ALLIES_ENOUGH_SPACE || '30'),
+      opponentsEnoughSpace: parseFloat(process.env.WEIGHT_OPPONENTS_ENOUGH_SPACE || '-45'),
       kills: parseFloat(process.env.WEIGHT_KILLS || '0'),
       deaths: parseFloat(process.env.WEIGHT_DEATHS || '-500')
     };
@@ -198,7 +200,7 @@ export class VoronoiStrategy {
         enemyTerritory: evaluation.averageBreakdown.stats.enemyTerritory,
         enemyLength: evaluation.averageBreakdown.stats.enemyLength,
         edgePenalty: evaluation.averageBreakdown.stats.edgePenalty,
-        selfEnoughSpace: evaluation.averageBreakdown.stats.selfEnoughSpace,
+        selfSpace: evaluation.averageBreakdown.stats.selfSpace,
         alliesEnoughSpace: evaluation.averageBreakdown.stats.alliesEnoughSpace,
         opponentsEnoughSpace: evaluation.averageBreakdown.stats.opponentsEnoughSpace,
         kills: evaluation.averageBreakdown.stats.kills,
@@ -207,6 +209,10 @@ export class VoronoiStrategy {
         allyH2HRisk: evaluation.averageBreakdown.stats.allyH2HRisk,
         waypointGoto: evaluation.averageBreakdown.stats.waypointGoto,
         waypointNear: evaluation.averageBreakdown.stats.waypointNear,
+        aggression: evaluation.averageBreakdown.stats.aggression,
+        potionSeeking: evaluation.averageBreakdown.stats.potionSeeking,
+        severKill: evaluation.averageBreakdown.stats.severKill,
+        trapped: evaluation.averageBreakdown.stats.trapped,
         weights: evaluation.averageBreakdown.weights,
         weighted: evaluation.averageBreakdown.weighted,
         fertileTerritory: evaluation.averageBreakdown.stats.teamTerritory + evaluation.averageBreakdown.stats.teamControlledFood * 10,
@@ -245,7 +251,7 @@ export class VoronoiStrategy {
       position: gameState.you.head,
       health: gameState.you.health,
       safeMoves: decision.candidateMoves,  // Only the moves we actually evaluated!
-      chosenMove: decision.move,
+      botRecommendation: decision.move,
       moveEvaluations,
       gameState,
       territoryCells: territoryCellsObj
@@ -257,6 +263,11 @@ export class VoronoiStrategy {
       scores.set(evaluation.move, evaluation.averageScore);
     }
     
+    // NOTE: the live green "goto" route is owned by the server
+    // (ActiveGameManager), which recomputes it anchored at the snake's PROJECTED
+    // head. The strategy must NOT return a competing route anchored at the live
+    // head — that mismatch is what made a Goto snake silently revert to the
+    // bot's straight move after committing a move this turn.
     return { 
       move: decision.move, 
       safeMoves: decision.candidateMoves,
@@ -266,6 +277,14 @@ export class VoronoiStrategy {
     };
   }
   
+  /**
+   * Called from the /end route so per-game state in the decision engine
+   * (notably lastFoodSetByGameId) doesn't accumulate over the process lifetime.
+   */
+  public onGameEnd(gameId: string): void {
+    this.decisionEngine.onGameEnd(gameId);
+  }
+
   private logTurnInfo(gameState: GameState, decision: MoveDecision): void {
     const turn = gameState.turn + 1;
     
@@ -303,8 +322,8 @@ export class VoronoiStrategy {
       console.log(`│ Food Eaten          │ ${breakdown.stats.foodEaten.toFixed(1).padStart(8)} │ ×${breakdown.weights.foodEaten.toString().padStart(7)} │ ${breakdown.weighted.foodEatenScore.toFixed(2).padStart(8)} │`);
       
       // Enhanced Space Detection
-      if (breakdown.stats.selfEnoughSpace !== undefined && breakdown.weights.selfEnoughSpace !== undefined) {
-        console.log(`│ Self Space          │ ${(breakdown.stats.selfEnoughSpace || 0).toFixed(1).padStart(8)} │ ×${(breakdown.weights.selfEnoughSpace || 0).toString().padStart(7)} │ ${(breakdown.weighted.selfEnoughSpaceScore || 0).toFixed(2).padStart(8)} │`);
+      if (breakdown.stats.selfSpace !== undefined && breakdown.weights.selfSpace !== undefined) {
+        console.log(`│ Self Space          │ ${(breakdown.stats.selfSpace || 0).toFixed(2).padStart(8)} │ ×${(breakdown.weights.selfSpace || 0).toString().padStart(7)} │ ${(breakdown.weighted.selfSpaceScore || 0).toFixed(2).padStart(8)} │`);
       }
       if (breakdown.stats.alliesEnoughSpace !== undefined && breakdown.weights.alliesEnoughSpace !== undefined) {
         console.log(`│ Allies Space        │ ${(breakdown.stats.alliesEnoughSpace || 0).toFixed(1).padStart(8)} │ ×${(breakdown.weights.alliesEnoughSpace || 0).toString().padStart(7)} │ ${(breakdown.weighted.alliesEnoughSpaceScore || 0).toFixed(2).padStart(8)} │`);

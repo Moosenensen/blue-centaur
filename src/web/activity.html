@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Server Activity</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background-color: #1a1a1a;
+      color: #e0e0e0;
+      padding-top: 60px;
+    }
+    .header {
+      position: fixed; top: 0; left: 0; right: 0; height: 60px;
+      background: #2a2a2a; border-bottom: 1px solid #444;
+      display: flex; align-items: center; justify-content: center;
+      padding: 0 15px; z-index: 1000;
+    }
+    .header h1 { font-size: 20px; font-weight: 600; }
+    .nav-links { position: absolute; right: 15px; display: flex; gap: 10px; }
+    .nav-links a {
+      color: #4CAF50; text-decoration: none; font-size: 14px;
+      padding: 6px 12px; border-radius: 4px; background: #333;
+    }
+    .nav-links a:hover { background: #444; }
+    .main-content { max-width: 1200px; margin: 0 auto; padding: 20px 15px; }
+    .toolbar {
+      display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+      background: #2a2a2a; border-radius: 8px; padding: 12px 15px; margin-bottom: 12px;
+    }
+    .toolbar button {
+      background: #333; color: #e0e0e0; border: 1px solid #555; border-radius: 4px;
+      padding: 6px 12px; font-size: 13px; cursor: pointer;
+    }
+    .toolbar button:hover { border-color: #4CAF50; }
+    .toolbar button.active { background: #4CAF50; color: #111; border-color: #4CAF50; }
+    .toolbar .spacer { flex: 1; }
+    .status-text { font-size: 13px; color: #888; }
+    .legend {
+      display: flex; flex-wrap: wrap; gap: 16px; font-size: 12px; color: #aaa;
+      background: #2a2a2a; border-radius: 8px; padding: 10px 15px; margin-bottom: 12px;
+    }
+    .legend .item { display: flex; align-items: center; gap: 6px; }
+    .swatch { width: 14px; height: 10px; border-radius: 2px; display: inline-block; }
+    .marker-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .chart-wrap {
+      background: #222; border: 1px solid #444; border-radius: 8px;
+      position: relative; overflow: hidden;
+    }
+    #chart { display: block; width: 100%; height: 260px; cursor: grab; touch-action: none; }
+    #chart.dragging { cursor: grabbing; }
+    #tooltip {
+      position: absolute; pointer-events: none; display: none;
+      background: #111; border: 1px solid #555; border-radius: 6px;
+      padding: 8px 10px; font-size: 12px; line-height: 1.5; max-width: 320px;
+      z-index: 10; white-space: pre-wrap; word-break: break-word;
+    }
+    .hint { font-size: 12px; color: #666; margin-top: 8px; }
+    #detailPanel {
+      margin-top: 12px; background: #2a2a2a; border-radius: 8px; padding: 12px 15px;
+      font-size: 13px; line-height: 1.6; display: none; word-break: break-word;
+    }
+    #detailPanel h3 { font-size: 14px; margin-bottom: 4px; }
+    #detailPanel pre {
+      background: #1a1a1a; border-radius: 4px; padding: 8px; margin-top: 6px;
+      font-size: 12px; overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Server Activity</h1>
+    <div class="nav-links">
+      <a href="/play">Play</a>
+      <a href="/history">History</a>
+      <a href="/config">Config</a>
+    </div>
+  </div>
+
+  <div class="main-content">
+    <div class="toolbar">
+      <button data-range="3600000">1h</button>
+      <button data-range="21600000">6h</button>
+      <button data-range="86400000">24h</button>
+      <button data-range="259200000">3d</button>
+      <button data-range="604800000" class="active">7d</button>
+      <button data-range="2592000000">30d</button>
+      <button id="refreshBtn" title="Reload events for the current view">Refresh</button>
+      <div class="spacer"></div>
+      <span class="status-text" id="statusText">Loading…</span>
+    </div>
+
+    <div class="legend">
+      <span class="item"><span class="swatch" style="background:#4CAF50"></span> Active (user actions / game traffic)</span>
+      <span class="item"><span class="swatch" style="background:#e2a63d"></span> Up but idle (billed waste)</span>
+      <span class="item"><span class="swatch" style="background:repeating-linear-gradient(45deg,#555 0 3px,#333 3px 6px)"></span> End unknown (crash / force-kill)</span>
+      <span class="item"><span class="swatch" style="background:#222;border:1px dashed #555"></span> Gap = scaled to zero</span>
+      <span class="item"><span class="marker-dot" style="background:#7ecbff"></span> boot</span>
+      <span class="item"><span class="marker-dot" style="background:#ff8a80"></span> shutdown</span>
+      <span class="item"><span class="marker-dot" style="background:#4CAF50"></span> woke</span>
+      <span class="item"><span class="marker-dot" style="background:#e2a63d"></span> went-idle</span>
+    </div>
+
+    <div class="chart-wrap">
+      <canvas id="chart"></canvas>
+      <div id="tooltip"></div>
+    </div>
+    <div class="hint">Scroll to zoom (cursor-anchored), drag to pan, click a marker for details. Data loads only when you change the view — no auto-refresh.</div>
+    <div id="detailPanel"></div>
+  </div>
+
+  <script>
+    'use strict';
+
+    const canvas = document.getElementById('chart');
+    const ctx = canvas.getContext('2d');
+    const tooltip = document.getElementById('tooltip');
+    const statusText = document.getElementById('statusText');
+    const detailPanel = document.getElementById('detailPanel');
+
+    const COLORS = {
+      active: '#4CAF50',
+      idle: '#e2a63d',
+      boot: '#7ecbff',
+      shutdown: '#ff8a80',
+      woke: '#4CAF50',
+      'went-idle': '#e2a63d',
+    };
+
+    // View window (epoch ms). Start with the last 7 days.
+    let viewEnd = Date.now();
+    let viewStart = viewEnd - 7 * 24 * 3600 * 1000;
+
+    // Loaded data covering [loadedStart, loadedEnd].
+    let events = [];
+    let periods = [];   // {start, end, endKnown, openEnded, segments:[{start,end,state}]}
+    let loadedStart = 0, loadedEnd = 0, serverNow = Date.now(), truncated = false;
+    let markerHits = [];  // {x, y, r, event}
+
+    const MIN_RANGE_MS = 30 * 1000;
+    const MAX_RANGE_MS = 400 * 24 * 3600 * 1000;
+
+    function fmtTs(ms) {
+      const d = new Date(ms);
+      return d.toLocaleString(undefined, {
+        year: 'numeric', month: 'short', day: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+      });
+    }
+
+    function fmtDur(ms) {
+      if (ms < 0) ms = 0;
+      const s = Math.round(ms / 1000);
+      if (s < 60) return s + 's';
+      const m = Math.floor(s / 60);
+      if (m < 60) return m + 'm ' + (s % 60) + 's';
+      const h = Math.floor(m / 60);
+      if (h < 24) return h + 'h ' + (m % 60) + 'm';
+      const d = Math.floor(h / 24);
+      return d + 'd ' + (h % 24) + 'h';
+    }
+
+    // ---- Data loading (only on explicit user actions / view changes) ----
+
+    let loadTimer = null;
+    function scheduleLoadIfNeeded() {
+      // If the view has drifted outside the loaded range, re-fetch (debounced
+      // so a zoom/pan gesture triggers one request, not dozens).
+      if (viewStart >= loadedStart && viewEnd <= loadedEnd && !truncated) return;
+      clearTimeout(loadTimer);
+      loadTimer = setTimeout(() => loadEvents(), 250);
+    }
+
+    async function loadEvents() {
+      // Fetch with generous margins so small pans don't refetch, and so
+      // periods spanning the view edge are closed correctly by events outside it.
+      const margin = Math.max((viewEnd - viewStart) * 2, 24 * 3600 * 1000);
+      const start = viewStart - margin;
+      const end = viewEnd + margin;
+      statusText.textContent = 'Loading…';
+      try {
+        const resp = await fetch(`/api/activity/events?start=${Math.round(start)}&end=${Math.round(end)}`);
+        const data = await resp.json();
+        events = data.events || [];
+        truncated = !!data.truncated;
+        serverNow = data.serverNow || Date.now();
+        loadedStart = start;
+        loadedEnd = end;
+        buildPeriods();
+        statusText.textContent = `${events.length} events` + (truncated ? ' (truncated — zoom in for full detail)' : '');
+      } catch (err) {
+        console.error('Failed to load timeline events:', err);
+        statusText.textContent = 'Failed to load events';
+      }
+      draw();
+    }
+
+    // ---- Period/segment reconstruction from raw events ----
+
+    function buildPeriods() {
+      periods = [];
+      let cur = null; // open period
+      let segStart = 0, segState = 'idle';
+
+      function closeSegment(at) {
+        if (!cur) return;
+        if (at > segStart) cur.segments.push({ start: segStart, end: at, state: segState });
+      }
+      function closePeriod(at, endKnown, openEnded) {
+        if (!cur) return;
+        closeSegment(at);
+        cur.end = at;
+        cur.endKnown = endKnown;
+        cur.openEnded = !!openEnded;
+        periods.push(cur);
+        cur = null;
+      }
+
+      for (const ev of events) {
+        if (ev.type === 'boot') {
+          // Implicitly close any period the previous process never shut down.
+          if (cur) closePeriod(ev.ts, false, false);
+          cur = { start: ev.ts, segments: [], end: 0, endKnown: true, openEnded: false };
+          segStart = ev.ts;
+          segState = 'idle';
+        } else if (!cur) {
+          // Events before the first loaded boot: synthesize an "unknown start"
+          // period so activity before the fetch window's first boot still shows.
+          cur = { start: ev.ts, segments: [], end: 0, endKnown: true, openEnded: false, startUnknown: true };
+          segStart = ev.ts;
+          segState = 'idle';
+          applyActivity(ev);
+        } else {
+          applyActivity(ev);
+        }
+      }
+
+      function applyActivity(ev) {
+        if (ev.type === 'woke' && segState !== 'active') {
+          closeSegment(ev.ts);
+          segStart = ev.ts; segState = 'active';
+        } else if (ev.type === 'went-idle' && segState !== 'idle') {
+          closeSegment(ev.ts);
+          segStart = ev.ts; segState = 'idle';
+        } else if (ev.type === 'shutdown') {
+          closePeriod(ev.ts, true, false);
+        }
+      }
+
+      // Still-open period: extend to serverNow as a live, open-ended period.
+      if (cur) closePeriod(Math.max(serverNow, segStart), true, true);
+    }
+
+    // ---- Rendering ----
+
+    function resizeCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.round(rect.width * dpr);
+      canvas.height = Math.round(rect.height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function xForTs(ts, w) {
+      return ((ts - viewStart) / (viewEnd - viewStart)) * w;
+    }
+
+    function tsForX(x, w) {
+      return viewStart + (x / w) * (viewEnd - viewStart);
+    }
+
+    function niceTickStep(rangeMs, targetTicks) {
+      const raw = rangeMs / targetTicks;
+      const steps = [
+        1000, 5000, 15000, 30000, 60000, 5 * 60000, 15 * 60000, 30 * 60000,
+        3600000, 3 * 3600000, 6 * 3600000, 12 * 3600000,
+        86400000, 2 * 86400000, 7 * 86400000, 30 * 86400000,
+      ];
+      for (const s of steps) if (s >= raw) return s;
+      return steps[steps.length - 1];
+    }
+
+    function tickLabel(ts, stepMs) {
+      const d = new Date(ts);
+      if (stepMs >= 86400000) return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      if (stepMs >= 3600000) return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      if (stepMs >= 60000) return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+      return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    function draw() {
+      resizeCanvas();
+      const rect = canvas.getBoundingClientRect();
+      const w = rect.width, h = rect.height;
+      ctx.clearRect(0, 0, w, h);
+      markerHits = [];
+
+      const bandTop = 60, bandH = 90;
+      const axisY = h - 30;
+
+      // Grid / time axis
+      const stepMs = niceTickStep(viewEnd - viewStart, Math.max(3, Math.floor(w / 140)));
+      const firstTick = Math.ceil(viewStart / stepMs) * stepMs;
+      ctx.strokeStyle = '#333';
+      ctx.fillStyle = '#888';
+      ctx.font = '11px sans-serif';
+      ctx.textAlign = 'center';
+      for (let t = firstTick; t <= viewEnd; t += stepMs) {
+        const x = xForTs(t, w);
+        ctx.beginPath(); ctx.moveTo(x, 20); ctx.lineTo(x, axisY); ctx.stroke();
+        ctx.fillText(tickLabel(t, stepMs), x, axisY + 16);
+      }
+
+      // Activity bands
+      for (const p of periods) {
+        if (p.end < viewStart || p.start > viewEnd) continue;
+        for (const seg of p.segments) {
+          const x1 = Math.max(0, xForTs(seg.start, w));
+          const x2 = Math.min(w, xForTs(seg.end, w));
+          if (x2 <= x1) continue;
+          ctx.fillStyle = seg.state === 'active' ? COLORS.active : COLORS.idle;
+          ctx.fillRect(x1, bandTop, Math.max(x2 - x1, 1), bandH);
+        }
+        // Unknown-end hatch over the tail of a force-killed/crashed period.
+        if (!p.endKnown) {
+          const x2 = Math.min(w, xForTs(p.end, w));
+          const hatchW = Math.min(18, Math.max(6, w * 0.01));
+          const x1 = Math.max(0, x2 - hatchW);
+          drawHatch(x1, bandTop, x2 - x1, bandH);
+          ctx.strokeStyle = '#bbb';
+          ctx.setLineDash([3, 3]);
+          ctx.beginPath(); ctx.moveTo(x2, bandTop); ctx.lineTo(x2, bandTop + bandH); ctx.stroke();
+          ctx.setLineDash([]);
+        }
+        // Open-ended (still running now): fade at right edge.
+        if (p.openEnded) {
+          const x2 = Math.min(w, xForTs(p.end, w));
+          const grad = ctx.createLinearGradient(x2 - 14, 0, x2, 0);
+          grad.addColorStop(0, 'rgba(34,34,34,0)');
+          grad.addColorStop(1, 'rgba(34,34,34,0.85)');
+          ctx.fillStyle = grad;
+          ctx.fillRect(x2 - 14, bandTop, 14, bandH);
+        }
+      }
+
+      // Event markers
+      const markerY = bandTop - 14;
+      for (const ev of events) {
+        if (ev.ts < viewStart || ev.ts > viewEnd) continue;
+        const x = xForTs(ev.ts, w);
+        const color = COLORS[ev.type] || '#aaa';
+        const isLifecycle = ev.type === 'boot' || ev.type === 'shutdown';
+        const y = isLifecycle ? markerY : markerY - 12;
+        ctx.fillStyle = color;
+        ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = color;
+        ctx.globalAlpha = 0.5;
+        ctx.beginPath(); ctx.moveTo(x, y + 4); ctx.lineTo(x, bandTop + bandH); ctx.stroke();
+        ctx.globalAlpha = 1;
+        markerHits.push({ x, y, r: 7, event: ev });
+      }
+
+      ctx.fillStyle = '#666';
+      ctx.textAlign = 'left';
+      ctx.font = '11px sans-serif';
+      ctx.fillText(`${fmtTs(viewStart)}  →  ${fmtTs(viewEnd)}  (${fmtDur(viewEnd - viewStart)})`, 8, 14);
+    }
+
+    function drawHatch(x, y, w, h) {
+      ctx.save();
+      ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+      ctx.strokeStyle = 'rgba(0,0,0,0.45)';
+      ctx.lineWidth = 2;
+      for (let i = -h; i < w; i += 6) {
+        ctx.beginPath();
+        ctx.moveTo(x + i, y + h);
+        ctx.lineTo(x + i + h, y);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // ---- Interaction: zoom (wheel), pan (drag), hover/click markers ----
+
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const anchor = tsForX(mx, rect.width);
+      const factor = Math.exp(e.deltaY * 0.0015);
+      let range = (viewEnd - viewStart) * factor;
+      range = Math.min(Math.max(range, MIN_RANGE_MS), MAX_RANGE_MS);
+      const frac = mx / rect.width;
+      viewStart = anchor - range * frac;
+      viewEnd = viewStart + range;
+      draw();
+      scheduleLoadIfNeeded();
+    }, { passive: false });
+
+    let dragging = false, dragX = 0, dragMoved = false;
+    canvas.addEventListener('pointerdown', (e) => {
+      dragging = true; dragMoved = false; dragX = e.clientX;
+      canvas.classList.add('dragging');
+      canvas.setPointerCapture(e.pointerId);
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      if (dragging) {
+        const dx = e.clientX - dragX;
+        if (Math.abs(dx) > 2) dragMoved = true;
+        dragX = e.clientX;
+        const dt = (dx / rect.width) * (viewEnd - viewStart);
+        viewStart -= dt; viewEnd -= dt;
+        draw();
+        scheduleLoadIfNeeded();
+        tooltip.style.display = 'none';
+        return;
+      }
+      // Hover: marker tooltip
+      const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+      const hit = hitTest(mx, my);
+      if (hit) {
+        tooltip.style.display = 'block';
+        tooltip.textContent = markerText(hit.event);
+        positionTooltip(mx, my, rect);
+      } else {
+        const seg = segmentAt(tsForX(mx, rect.width), my);
+        if (seg) {
+          tooltip.style.display = 'block';
+          tooltip.textContent = segText(seg);
+          positionTooltip(mx, my, rect);
+        } else {
+          tooltip.style.display = 'none';
+        }
+      }
+    });
+    canvas.addEventListener('pointerup', (e) => {
+      canvas.classList.remove('dragging');
+      if (dragging && !dragMoved) {
+        const rect = canvas.getBoundingClientRect();
+        const hit = hitTest(e.clientX - rect.left, e.clientY - rect.top);
+        showDetail(hit ? hit.event : null);
+      }
+      dragging = false;
+    });
+    canvas.addEventListener('pointerleave', () => { tooltip.style.display = 'none'; });
+
+    function positionTooltip(mx, my, rect) {
+      let left = mx + 14, top = my + 14;
+      if (left + 330 > rect.width) left = mx - 330;
+      if (left < 0) left = 4;
+      tooltip.style.left = left + 'px';
+      tooltip.style.top = top + 'px';
+    }
+
+    function hitTest(mx, my) {
+      let best = null, bestD = Infinity;
+      for (const m of markerHits) {
+        const d = Math.hypot(m.x - mx, m.y - my);
+        if (d <= m.r + 3 && d < bestD) { best = m; bestD = d; }
+      }
+      return best;
+    }
+
+    function segmentAt(ts, my) {
+      if (my < 60 || my > 150) return null;
+      for (const p of periods) {
+        if (ts < p.start || ts > p.end) continue;
+        for (const seg of p.segments) {
+          if (ts >= seg.start && ts <= seg.end) return { ...seg, period: p };
+        }
+      }
+      return null;
+    }
+
+    function markerText(ev) {
+      let txt = `${ev.type}  —  ${fmtTs(ev.ts)}`;
+      if (ev.detail) {
+        for (const [k, v] of Object.entries(ev.detail)) {
+          txt += `\n${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`;
+        }
+      }
+      return txt;
+    }
+
+    function segText(seg) {
+      const label = seg.state === 'active' ? 'Active (users/games)' : 'Up but idle';
+      let txt = `${label}\n${fmtTs(seg.start)} → ${fmtTs(seg.end)}\nDuration: ${fmtDur(seg.end - seg.start)}`;
+      if (seg.period && !seg.period.endKnown) txt += '\n⚠ Period end unknown (no shutdown event — crash/force-kill; closed by next boot)';
+      if (seg.period && seg.period.openEnded) txt += '\nServer still up (period open)';
+      return txt;
+    }
+
+    function showDetail(ev) {
+      if (!ev) { detailPanel.style.display = 'none'; return; }
+      detailPanel.style.display = 'block';
+      const detailJson = ev.detail ? JSON.stringify(ev.detail, null, 2) : '(none)';
+      detailPanel.innerHTML =
+        `<h3>${escapeHtml(ev.type)} event</h3>` +
+        `<div>Time: ${escapeHtml(fmtTs(ev.ts))} (${escapeHtml(String(ev.ts))} ms)</div>` +
+        `<div>Event id: ${escapeHtml(String(ev.id))}</div>` +
+        `<pre>${escapeHtml(detailJson)}</pre>`;
+    }
+
+    function escapeHtml(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[c]);
+    }
+
+    // ---- Toolbar ----
+
+    document.querySelectorAll('.toolbar button[data-range]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.toolbar button[data-range]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const range = Number(btn.dataset.range);
+        viewEnd = Date.now();
+        viewStart = viewEnd - range;
+        loadEvents();
+      });
+    });
+    document.getElementById('refreshBtn').addEventListener('click', () => loadEvents());
+
+    window.addEventListener('resize', draw);
+
+    // Optional #1h / #6h / #24h / #3d / #7d / #30d hash picks the initial range.
+    (function applyHashRange() {
+      const label = (location.hash || '').replace('#', '');
+      const btn = Array.from(document.querySelectorAll('.toolbar button[data-range]'))
+        .find(b => b.textContent === label);
+      if (btn) {
+        document.querySelectorAll('.toolbar button[data-range]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        viewEnd = Date.now();
+        viewStart = viewEnd - Number(btn.dataset.range);
+      }
+    })();
+
+    // Initial load — one fetch, no timers after that.
+    loadEvents();
+  </script>
+</body>
+</html>
