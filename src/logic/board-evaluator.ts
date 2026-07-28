@@ -7,6 +7,11 @@
 import { GameState, Snake, Coord } from '../types/battlesnake';
 import { BoardGraph, BoardGraphConfig, ClearanceMode } from './board-graph';
 import { MultiSourceBFS, BFSSource } from './multi-source-bfs';
+import { INVULNERABILITY_DURATION_TURNS } from '../config/game-config';
+
+// How many owned potions saturate the potion "control" term. Owning this many
+// potions inside our Voronoi territory scores the full +1; fewer scores pro rata.
+const POTION_CONTROL_SATURATION = 3;
 
 export interface HeuristicStats {
   // My snake stats
@@ -51,6 +56,12 @@ export interface HeuristicStats {
 
   // Offensive aggression heuristic
   aggression: number;           // Reward [0,2] for closing in on / landing on the head/body of an enemy we strictly out-invulnerate; 0 otherwise
+
+  // Invulnerability potion heuristic
+  potionSeeking: number;        // Reward [0,3]: approach/drink term [0,2] + owned-potion control term [0,1]
+
+  // Sever/kill heuristic
+  severKill: number;            // Reward [0,2] for cutting an enemy we out-invulnerate, scaled by how much of it we sever and how soon we can land the cut
 
   // Hard trap survival signal
   trapped: number;              // 1 if the move leads into a clearly-fatal dead-end pocket (no tail-chase, not enough room to outlast our length), 0 otherwise
@@ -126,6 +137,12 @@ export interface HeuristicWeights {
   // Offensive aggression weight
   aggression: number;           // Weight applied to the aggression reward (positive, conservative so survival dominates)
 
+  // Invulnerability potion weight
+  potionSeeking: number;        // Weight applied to the potion reward (positive; max contribution stays under the death penalty)
+
+  // Sever/kill weight
+  severKill: number;            // Weight applied to the sever/kill reward (positive; max contribution stays under the death penalty)
+
   // Hard trap survival weight
   trapped: number;              // Weight applied to the trapped signal (strongly negative; a fatal pocket should dominate non-survival heuristics)
 }
@@ -172,6 +189,12 @@ export interface WeightedScores {
 
   // Offensive aggression weighted score
   aggressionScore: number;
+
+  // Invulnerability potion weighted score
+  potionSeekingScore: number;
+
+  // Sever/kill weighted score
+  severKillScore: number;
 
   // Hard trap survival weighted score
   trappedScore: number;
@@ -226,6 +249,13 @@ export class BoardEvaluator {
       // Offensive aggression weight (conservative: max stat 2 → max +50, far below
       // the death penalty of -500, so survival always dominates aggression)
       aggression: 25,              // Reward hunting enemies we strictly out-invulnerate
+
+      // Invulnerability potion weight (stat [0,3] → max +360, under the -500
+      // death penalty but far above foodProximity so potions outrank food).
+      potionSeeking: 120,
+
+      // Sever/kill weight (stat [0,2] → max +400, under the -500 death penalty).
+      severKill: 200,
 
       // Hard trap survival weight: a clearly-fatal pocket is effectively a death,
       // so this dominates every non-survival heuristic. The candidate-level veto
@@ -299,6 +329,8 @@ export class BoardEvaluator {
           waypointGoto: 0,
           waypointNear: 0,
           aggression: 0,
+          potionSeeking: 0,
+          severKill: 0,
           trapped: 0   // death is already captured by deaths:1; avoid double-penalizing
         },
         territoryCells: new Map()
@@ -422,7 +454,19 @@ export class BoardEvaluator {
 
     // Calculate offensive aggression toward enemies we strictly out-invulnerate
     const aggression = this.calculateAggression(ourSnake, board.snakes, teamSnakeIds, board.width, board.height);
-    
+
+    // Potion hunger: pull toward invulnerability potions and reward owning the
+    // territory they sit in. `wonCells` is the Voronoi territory we win.
+    const potionSeeking = this.calculatePotionSeeking(
+      graph, ourSnake, board.invulnerabilityPotions ?? [], wonCells, board.width, board.height
+    );
+
+    // Sever/kill: the concrete cut we can land on an enemy we out-invulnerate,
+    // inside the turns our invulnerability advantage still has to run.
+    const severKill = this.calculateSeverKill(
+      graph, gameState.turn ?? 0, ourSnake, board.snakes, teamSnakeIds
+    );
+
     return {
       stats: {
         myLength: ourSnake.length,
@@ -448,6 +492,8 @@ export class BoardEvaluator {
         waypointGoto,
         waypointNear,
         aggression,
+        potionSeeking,
+        severKill,
         trapped
       },
       territoryCells: bfsResult.territoryCells
@@ -689,6 +735,240 @@ export class BoardEvaluator {
     return best;
   }
   
+  /**
+   * Invulnerability-potion heuristic: drink as many potions as possible.
+   *
+   * Two terms, deliberately kept separable:
+   *  - APPROACH [0,2]: +2 flat when our head is on a potion cell (we are drinking
+   *    it this turn — the same "eat now dominates proximity" shape as foodEaten),
+   *    otherwise closeness (boardSize - pathDistance)/boardSize to the nearest
+   *    potion we can actually walk to. Path distance, not Manhattan, so a potion
+   *    behind a wall of snake doesn't pull us into it.
+   *  - CONTROL [0,1]: the number of potions sitting inside the Voronoi territory
+   *    we win, normalised by POTION_CONTROL_SATURATION. This is what turns "grab
+   *    the nearest potion" into "collect as many as possible": positions that own
+   *    a cluster of potions outrank positions that own one, so the snake parks
+   *    itself where the next potions are already conceded to it.
+   *
+   * Total range [0,3]. Returns 0 when the board has no potions.
+   */
+  private calculatePotionSeeking(
+    graph: BoardGraph,
+    ourSnake: Snake,
+    potions: Coord[],
+    wonCells: Set<string>,
+    width: number,
+    height: number
+  ): number {
+    if (potions.length === 0) return 0;
+
+    const head = ourSnake.head;
+    const onPotion = potions.some(p => p.x === head.x && p.y === head.y);
+
+    let approach: number;
+    if (onPotion) {
+      approach = 2;
+    } else {
+      const distance = this.nearestReachableDistance(graph, ourSnake, potions);
+      const boardSize = Math.max(width, height);
+      approach = distance === Infinity ? 0 : Math.max(0, (boardSize - distance) / boardSize);
+    }
+
+    let controlled = 0;
+    for (const potion of potions) {
+      if (wonCells.has(graph.coordToKey(potion))) controlled++;
+    }
+    const control = Math.min(1, controlled / POTION_CONTROL_SATURATION);
+
+    return approach + control;
+  }
+
+  /**
+   * Shortest walkable distance from our head to the nearest of `targets`, using
+   * our own optimistic passability (so bodies that will have receded by the time
+   * we arrive don't count as walls). Returns Infinity when none is reachable.
+   */
+  private nearestReachableDistance(graph: BoardGraph, ourSnake: Snake, targets: Coord[]): number {
+    const targetKeys = new Set(targets.map(t => graph.coordToKey(t)));
+    if (targetKeys.size === 0) return Infinity;
+
+    const pass = graph.passabilityFor(ourSnake.id, { clearance: 'optimistic' });
+    const visited = new Set<string>([graph.coordToKey(ourSnake.head)]);
+    let level: Coord[] = [ourSnake.head];
+    let distance = 0;
+
+    while (level.length > 0) {
+      const next: Coord[] = [];
+      distance++;
+      for (const cur of level) {
+        for (const neighbor of [
+          { x: cur.x, y: cur.y + 1 },
+          { x: cur.x, y: cur.y - 1 },
+          { x: cur.x - 1, y: cur.y },
+          { x: cur.x + 1, y: cur.y }
+        ]) {
+          if (!graph.isInBounds(neighbor)) continue;
+          const key = graph.coordToKey(neighbor);
+          if (visited.has(key)) continue;
+          if (!pass.passable(neighbor, distance)) continue;
+          visited.add(key);
+          if (targetKeys.has(key)) return distance;
+          next.push(neighbor);
+        }
+      }
+      level = next;
+    }
+
+    return Infinity;
+  }
+
+  /**
+   * Sever/kill heuristic: cut enemies we out-invulnerate, as close to their head
+   * as we can get, while our advantage lasts.
+   *
+   * Fires exactly when we STRICTLY out-invulnerate an enemy — i.e. when we are
+   * invulnerable (potion) or the enemy is vulnerable (poison), the same strict
+   * rule the BoardGraph severability layer and the simulator already use. Allies
+   * are never targeted.
+   *
+   * Moving onto an enemy's body severs it at the point of intersection: the enemy
+   * keeps everything from its head down to the cut and loses everything behind
+   * it. Cutting at body index `i` of an `L`-long snake therefore removes `L - i`
+   * segments, so the reward is the severed FRACTION `(L - i)/L` — maximised at the
+   * head (index 0, fraction 1, an outright kill) and worth almost nothing at the
+   * tail. That's what makes the snake aim up the body toward the head instead of
+   * clipping whatever segment happens to be nearest.
+   *
+   * Timing matters because the potion only grants INVULNERABILITY_DURATION_TURNS
+   * turns: a cut we cannot reach before the advantage expires is worth zero. Each
+   * enemy therefore gets a `window` (see `severabilityWindow`) of further moves we
+   * may still spend against it, and only cuts landing within that window count.
+   *
+   *  - already standing on a target segment (the cut has landed): 1 + fraction → (1,2]
+   *  - reachable in d ∈ [1,window] moves: fraction × (window - d + 1)/(window + 1) → (0,1]
+   *  - unreachable in time: 0
+   *
+   * The best cut over all enemies wins, so the stat stays bounded in [0,2]
+   * regardless of how many severable enemies are around.
+   */
+  private calculateSeverKill(
+    graph: BoardGraph,
+    currentTurn: number,
+    ourSnake: Snake,
+    allSnakes: Snake[],
+    teamSnakeIds: Set<string>
+  ): number {
+    // Cell -> the best cut available there, plus how long that cut stays legal.
+    const targets = new Map<string, { window: number; fraction: number }>();
+    let maxWindow = 0;
+
+    for (const enemy of allSnakes) {
+      if (enemy.id === ourSnake.id) continue;
+      if (enemy.health <= 0) continue;
+      if (teamSnakeIds.has(enemy.id)) continue;            // never cut a teammate
+
+      const window = this.severabilityWindow(ourSnake, enemy, currentTurn);
+      if (window < 0) continue;                            // not severable at all
+      if (enemy.body.length === 0) continue;
+
+      for (let i = 0; i < enemy.body.length; i++) {
+        const key = graph.coordToKey(enemy.body[i]);
+        const fraction = (enemy.body.length - i) / enemy.body.length;
+        const existing = targets.get(key);
+        // Overlapping/stacked segments: keep the cut nearest the head (biggest).
+        if (!existing || fraction > existing.fraction) {
+          targets.set(key, { window, fraction });
+        }
+      }
+      if (window > maxWindow) maxWindow = window;
+    }
+
+    if (targets.size === 0) return 0;
+
+    // The cut has already landed: our head shares a cell with the severed body.
+    const landed = targets.get(graph.coordToKey(ourSnake.head));
+    if (landed) return 1 + landed.fraction;
+
+    // Otherwise look for the best cut we can still reach in time. The window is
+    // capped at a couple of turns, so this flood is tiny.
+    const pass = graph.passabilityFor(ourSnake.id, { clearance: 'optimistic' });
+    const visited = new Set<string>([graph.coordToKey(ourSnake.head)]);
+    let level: Coord[] = [ourSnake.head];
+    let best = 0;
+
+    for (let d = 1; d <= maxWindow && level.length > 0; d++) {
+      const next: Coord[] = [];
+      for (const cur of level) {
+        for (const neighbor of [
+          { x: cur.x, y: cur.y + 1 },
+          { x: cur.x, y: cur.y - 1 },
+          { x: cur.x - 1, y: cur.y },
+          { x: cur.x + 1, y: cur.y }
+        ]) {
+          if (!graph.isInBounds(neighbor)) continue;
+          const key = graph.coordToKey(neighbor);
+          if (visited.has(key)) continue;
+          if (!pass.passable(neighbor, d)) continue;
+          visited.add(key);
+          next.push(neighbor);
+
+          const target = targets.get(key);
+          if (target && d <= target.window) {
+            const timeliness = (target.window - d + 1) / (target.window + 1);
+            const reward = target.fraction * timeliness;
+            if (reward > best) best = reward;
+          }
+        }
+      }
+      level = next;
+    }
+
+    return best;
+  }
+
+  /**
+   * How many FURTHER moves we may spend and still out-invulnerate `them`.
+   * Returns -1 when we never out-invulnerate them (no cut is available), 0 when
+   * the advantage only holds for the cell we already occupy.
+   *
+   * The advantage exists while our level is strictly above theirs, which happens
+   * either because we drank a potion (our level is raised) or because they took
+   * poison (their level is depressed) — so the window is however long the
+   * longer-lived of those two effects still has to run. `invulnerabilityExpiryTurn`
+   * from the server is authoritative; when it's missing we assume a fresh grant.
+   * Either way it is capped at the potion's own duration: we only ever get
+   * INVULNERABILITY_DURATION_TURNS turns, so the last of them is the last move we
+   * can plan a cut for.
+   */
+  private severabilityWindow(us: Snake, them: Snake, currentTurn: number): number {
+    // Levels are expiry-aware, exactly as in BoardGraph's severability layer: an
+    // effect whose expiry turn has passed no longer counts for anybody.
+    const ourLevel = this.effectiveInvulnerability(us, currentTurn);
+    const theirLevel = this.effectiveInvulnerability(them, currentTurn);
+    if (ourLevel <= theirLevel) return -1;
+
+    // A grant covering turns T..T+DURATION-1 leaves DURATION-1 further moves.
+    const cap = INVULNERABILITY_DURATION_TURNS - 1;
+    const ourTurns = ourLevel > 0 ? this.remainingAdvantageTurns(us, currentTurn, cap) : 0;
+    const theirTurns = theirLevel < 0 ? this.remainingAdvantageTurns(them, currentTurn, cap) : 0;
+    return Math.max(0, ourTurns, theirTurns);
+  }
+
+  /** A snake's invulnerability level as it stands on `currentTurn` (0 once expired). */
+  private effectiveInvulnerability(snake: Snake, currentTurn: number): number {
+    const level = snake.invulnerabilityLevel ?? 0;
+    const expiry = snake.invulnerabilityExpiryTurn;
+    if (expiry !== undefined && currentTurn > expiry) return 0;
+    return level;
+  }
+
+  /** Further turns a snake's non-zero invulnerability level still applies for. */
+  private remainingAdvantageTurns(snake: Snake, currentTurn: number, cap: number): number {
+    const expiry = snake.invulnerabilityExpiryTurn;
+    if (expiry === undefined) return cap;  // server omitted expiry: assume a fresh grant
+    return Math.max(0, Math.min(cap, expiry - currentTurn));
+  }
+
   /**
    * Calculate edge penalty: returns -1 if head is on board edge, 0 otherwise.
    */
@@ -1018,6 +1298,8 @@ export class BoardEvaluator {
       waypointGotoScore: stats.waypointGoto * this.weights.waypointGoto,
       waypointNearScore: stats.waypointNear * this.weights.waypointNear,
       aggressionScore: stats.aggression * this.weights.aggression,
+      potionSeekingScore: stats.potionSeeking * this.weights.potionSeeking,
+      severKillScore: stats.severKill * this.weights.severKill,
       trappedScore: stats.trapped * this.weights.trapped
     };
   }
@@ -1048,6 +1330,8 @@ export class BoardEvaluator {
            weighted.waypointGotoScore +
            weighted.waypointNearScore +
            weighted.aggressionScore +
+           weighted.potionSeekingScore +
+           weighted.severKillScore +
            weighted.trappedScore;
   }
 }

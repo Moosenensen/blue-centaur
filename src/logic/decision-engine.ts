@@ -563,6 +563,8 @@ export class DecisionEngine {
       waypointGoto: 0,
       waypointNear: 0,
       aggression: 0,
+      potionSeeking: 0,
+      severKill: 0,
       trapped: 0
     };
     
@@ -589,6 +591,8 @@ export class DecisionEngine {
       waypointGotoScore: 0,
       waypointNearScore: 0,
       aggressionScore: 0,
+      potionSeekingScore: 0,
+      severKillScore: 0,
       trappedScore: 0
     };
     
@@ -619,6 +623,8 @@ export class DecisionEngine {
       sumStats.waypointGoto += evaluation.stats.waypointGoto;
       sumStats.waypointNear += evaluation.stats.waypointNear;
       sumStats.aggression += evaluation.stats.aggression;
+      sumStats.potionSeeking += evaluation.stats.potionSeeking;
+      sumStats.severKill += evaluation.stats.severKill;
       sumStats.trapped += evaluation.stats.trapped;
       
       // Sum weighted scores
@@ -644,6 +650,8 @@ export class DecisionEngine {
       sumWeighted.waypointGotoScore += evaluation.weighted.waypointGotoScore;
       sumWeighted.waypointNearScore += evaluation.weighted.waypointNearScore;
       sumWeighted.aggressionScore += evaluation.weighted.aggressionScore;
+      sumWeighted.potionSeekingScore += evaluation.weighted.potionSeekingScore;
+      sumWeighted.severKillScore += evaluation.weighted.severKillScore;
       sumWeighted.trappedScore += evaluation.weighted.trappedScore;
       
       totalScore += evaluation.score;
@@ -678,6 +686,8 @@ export class DecisionEngine {
         waypointGoto: sumStats.waypointGoto / count,
         waypointNear: sumStats.waypointNear / count,
         aggression: sumStats.aggression / count,
+        potionSeeking: sumStats.potionSeeking / count,
+        severKill: sumStats.severKill / count,
         trapped: sumStats.trapped / count
       },
       weights: evaluations[0].weights, // All evaluations use same weights
@@ -704,6 +714,8 @@ export class DecisionEngine {
         waypointGotoScore: sumWeighted.waypointGotoScore / count,
         waypointNearScore: sumWeighted.waypointNearScore / count,
         aggressionScore: sumWeighted.aggressionScore / count,
+        potionSeekingScore: sumWeighted.potionSeekingScore / count,
+        severKillScore: sumWeighted.severKillScore / count,
         trappedScore: sumWeighted.trappedScore / count
       }
     };

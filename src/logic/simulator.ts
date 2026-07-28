@@ -241,6 +241,11 @@ export class Simulator {
       food: (board.food ?? []).map(f => ({ x: f.x, y: f.y })),
       hazards: (board.hazards ?? []).map(h => ({ x: h.x, y: h.y })),
       fertileTiles: board.fertileTiles ? board.fertileTiles.map(f => ({ x: f.x, y: f.y })) : undefined,
+      // Potions are carried through untouched: the potion under a snake's new
+      // head is exactly how the evaluator detects that this move drinks it.
+      invulnerabilityPotions: board.invulnerabilityPotions
+        ? board.invulnerabilityPotions.map(p => ({ x: p.x, y: p.y }))
+        : undefined,
       snakes: (board.snakes ?? []).map(snake => ({
         id: snake.id,
         name: snake.name,
@@ -252,7 +257,11 @@ export class Simulator {
         shout: snake.shout,
         squad: snake.squad,
         customizations: { ...(snake.customizations ?? {}) },
-        invulnerabilityLevel: snake.invulnerabilityLevel
+        invulnerabilityLevel: snake.invulnerabilityLevel,
+        // Without the expiry turn the simulated state can't tell how long an
+        // invulnerability advantage still has to run, and every severability /
+        // sever-kill judgement downstream silently falls back to "this turn only".
+        invulnerabilityExpiryTurn: snake.invulnerabilityExpiryTurn
       }))
     };
   }

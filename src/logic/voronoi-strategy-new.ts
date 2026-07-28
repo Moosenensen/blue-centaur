@@ -82,6 +82,8 @@ export class VoronoiStrategy {
       waypointGoto: config.waypointGoto,
       waypointNear: config.waypointNear,
       aggression: config.aggression,
+      potionSeeking: config.potionSeeking,
+      severKill: config.severKill,
       trapped: config.trapped
     };
   }
@@ -208,6 +210,8 @@ export class VoronoiStrategy {
         waypointGoto: evaluation.averageBreakdown.stats.waypointGoto,
         waypointNear: evaluation.averageBreakdown.stats.waypointNear,
         aggression: evaluation.averageBreakdown.stats.aggression,
+        potionSeeking: evaluation.averageBreakdown.stats.potionSeeking,
+        severKill: evaluation.averageBreakdown.stats.severKill,
         trapped: evaluation.averageBreakdown.stats.trapped,
         weights: evaluation.averageBreakdown.weights,
         weighted: evaluation.averageBreakdown.weighted,

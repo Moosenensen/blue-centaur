@@ -3,6 +3,16 @@
  * These values can be overridden via the web interface
  */
 
+/**
+ * Number of turns an invulnerability potion (or a poison's vulnerability) stays
+ * in force, counting the turn it is consumed. A snake that drinks a potion on
+ * turn T is invulnerable on turns T, T+1, T+2 — i.e. it has 2 further moves it
+ * can still spend while invulnerable. The server normally states this directly
+ * via `invulnerabilityExpiryTurn`; this constant is the fallback (and the hard
+ * cap) used when it doesn't.
+ */
+export const INVULNERABILITY_DURATION_TURNS = 3;
+
 export interface GameConfig {
   // Snake heuristic weights
   myLength: number;
@@ -45,6 +55,10 @@ export interface GameConfig {
 
   // Offensive aggression weight
   aggression: number;            // Reward for hunting enemies we strictly out-invulnerate (closing in on / landing on their head/body)
+
+  // Invulnerability potion weights
+  potionSeeking: number;         // Reward for closing in on / drinking invulnerability potions and for owning the territory they sit in
+  severKill: number;             // Reward for severing (or killing) an enemy we out-invulnerate, weighted by how close to its head we cut
 
   // Hard trap survival weight
   trapped: number;               // Strongly-negative penalty for entering a clearly-fatal dead-end pocket (no tail-chase, not enough room to outlast our length)
@@ -114,6 +128,17 @@ export const DEFAULT_CONFIG: GameConfig = {
   // Offensive aggression weight (conservative: max stat 2 → max +50, far below the
   // death penalty of -500, so survival always dominates aggression)
   aggression: 25,
+
+  // Invulnerability potion weight. Stat is [0,3] → max +360, still under the
+  // -500 death penalty so the snake never dies for a potion, but well above
+  // foodProximity (max +50) so a potion outranks ordinary food attraction.
+  potionSeeking: 120,
+
+  // Sever/kill weight. Stat is [0,2] → max +400 for cutting an enemy right at
+  // the head, again under the -500 death penalty. Larger than `aggression`
+  // because this heuristic only fires on cuts we can actually land inside our
+  // remaining invulnerability window.
+  severKill: 200,
 
   // Hard trap survival weight: a clearly-fatal pocket is effectively a death, so
   // this dominates every non-survival heuristic. The candidate-level veto in the

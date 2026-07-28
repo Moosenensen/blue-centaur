@@ -1651,6 +1651,8 @@ const BoardRenderer = (function () {
         waypointGotoScore: 0,
         waypointNearScore: 0,
         aggressionScore: 0,
+        potionSeekingScore: 0,
+        severKillScore: 0,
         trappedScore: 0,
         fertileScore: 0,
       };
@@ -1846,6 +1848,20 @@ const BoardRenderer = (function () {
         weight: breakdown.weights?.aggression ?? 0,
         weightedScore: breakdown.weighted?.aggressionScore ?? 0,
         averageWeighted: averageWeighted.aggressionScore ?? 0,
+      },
+      {
+        name: "Potion Seeking",
+        value: breakdown.potionSeeking ?? "—",
+        weight: breakdown.weights?.potionSeeking ?? 0,
+        weightedScore: breakdown.weighted?.potionSeekingScore ?? 0,
+        averageWeighted: averageWeighted.potionSeekingScore ?? 0,
+      },
+      {
+        name: "Sever / Kill",
+        value: breakdown.severKill ?? "—",
+        weight: breakdown.weights?.severKill ?? 0,
+        weightedScore: breakdown.weighted?.severKillScore ?? 0,
+        averageWeighted: averageWeighted.severKillScore ?? 0,
       },
       {
         name: "Trapped (fatal pocket)",

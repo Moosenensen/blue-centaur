@@ -491,6 +491,29 @@
                         </div>
                     </div>
                     
+                    <!-- Invulnerability Potions -->
+                    <div class="config-section">
+                        <h3><span>🧪</span>Invulnerability Potions</h3>
+
+                        <div class="config-item">
+                            <label for="potionSeeking">Potion Seeking Weight</label>
+                            <div class="input-group">
+                                <input type="range" id="potionSeeking_slider" min="0" max="500" step="5">
+                                <input type="number" id="potionSeeking" min="0" max="500" step="5">
+                            </div>
+                            <div class="description">Reward for drinking invulnerability potions: closeness to the nearest reachable potion (+2 flat while standing on one) plus a bonus for how many potions sit inside the territory we win, so the snake collects clusters rather than one-offs.</div>
+                        </div>
+
+                        <div class="config-item">
+                            <label for="severKill">Sever / Kill Weight</label>
+                            <div class="input-group">
+                                <input type="range" id="severKill_slider" min="0" max="500" step="5">
+                                <input type="number" id="severKill" min="0" max="500" step="5">
+                            </div>
+                            <div class="description">Reward for cutting an enemy we strictly out-invulnerate (we drank a potion, or they took poison). Scored by the fraction of the enemy severed — cutting at the head is a kill, cutting at the tail is worth almost nothing — and only for cuts we can land before our 3-turn invulnerability runs out.</div>
+                        </div>
+                    </div>
+
                     <!-- Centaur Play Mode -->
                     <div class="config-section">
                         <h3><span>🎮</span>Centaur Play Mode</h3>
@@ -574,6 +597,7 @@
             'enemyH2HRisk', 'allyH2HRisk',
             'waypointGoto', 'waypointNear',
             'aggression', 'trapped',
+            'potionSeeking', 'severKill',
             'maxSimulationDepth', 'timeoutMs', 'nearbyDistance',
             'idleTimeoutMinutes'
         ];
@@ -642,6 +666,10 @@
                         } else if (key === 'aggression') {
                             slider.min = 0;
                             slider.max = 200;
+                        } else if (key === 'potionSeeking' || key === 'severKill') {
+                            slider.min = 0;
+                            slider.max = 500;
+                            slider.step = 5;
                         } else if (key === 'trapped') {
                             slider.min = -2000;
                             slider.max = 0;

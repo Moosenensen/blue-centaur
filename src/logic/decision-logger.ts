@@ -47,6 +47,8 @@ export interface DecisionLogEntry {
       selfSpace?: number;
 
       aggression?: number;
+      potionSeeking?: number;
+      severKill?: number;
       trapped?: number;
 
       fertileTerritory?: number;
