@@ -14,7 +14,8 @@ export class Simulator {
    */
   public simulateNextBoardState(
     gameState: GameState,
-    moveSet: MoveSet
+    moveSet: MoveSet,
+    teamSnakeIds?: Set<string>
   ): SimulatedBoardState {
     // Deep copy the board
     const newBoard = this.deepCopyBoard(gameState.board);
@@ -53,22 +54,57 @@ export class Simulator {
           newBoard.snakes.find(s => s.id === id)!
         );
         
-        // Find the longest snake(s)
-        const maxLength = Math.max(...collidingSnakes.map(s => s.length));
-        const survivors = collidingSnakes.filter(s => s.length === maxLength);
+        // Invulnerability decides head-to-head first: a more-invulnerable snake
+        // "acts as the bigger snake" and wins regardless of length. Length is only
+        // the tiebreaker among snakes sharing the top invulnerability level.
+        const maxInvulnerability = Math.max(...collidingSnakes.map(s => s.invulnerabilityLevel ?? 0));
+        const topInvulnerable = collidingSnakes.filter(s => (s.invulnerabilityLevel ?? 0) === maxInvulnerability);
         
-        // If multiple snakes of same length, all die
+        // Among the most-invulnerable snakes, the longest survives
+        const maxLength = Math.max(...topInvulnerable.map(s => s.length));
+        const survivors = topInvulnerable.filter(s => s.length === maxLength);
+        
+        // Determine who dies in this collision group under standard resolution.
+        const groupDead = new Set<string>();
         if (survivors.length > 1) {
+          // No unique survivor (tie among equal-invulnerability, equal-length
+          // snakes) — all colliding snakes die.
           for (const snake of collidingSnakes) {
-            deadSnakeIds.add(snake.id);
+            groupDead.add(snake.id);
           }
         } else {
-          // Shorter snakes die
+          // Single survivor; every other colliding snake dies.
+          const survivorId = survivors[0].id;
           for (const snake of collidingSnakes) {
-            if (snake.length < maxLength) {
-              deadSnakeIds.add(snake.id);
+            if (snake.id !== survivorId) {
+              groupDead.add(snake.id);
             }
           }
+        }
+        
+        // Team-awareness: never let our snake benefit from a teammate's
+        // head-to-head death. If our snake would survive this collision while a
+        // teammate dies in it, flip the outcome — our snake dies and teammates
+        // are spared — so the evaluated move gains no territory/space from
+        // eliminating an ally. Enemy collision resolution is left unchanged.
+        if (teamSnakeIds) {
+          const ourId = gameState.you.id;
+          const ourSurvives = snakeIds.includes(ourId) && !groupDead.has(ourId);
+          const allyDies = snakeIds.some(
+            id => id !== ourId && teamSnakeIds.has(id) && groupDead.has(id)
+          );
+          if (ourSurvives && allyDies) {
+            groupDead.add(ourId);
+            for (const id of snakeIds) {
+              if (id !== ourId && teamSnakeIds.has(id)) {
+                groupDead.delete(id);
+              }
+            }
+          }
+        }
+        
+        for (const id of groupDead) {
+          deadSnakeIds.add(id);
         }
       }
     }

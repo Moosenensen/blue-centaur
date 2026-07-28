@@ -136,6 +136,13 @@
       // immediately or retries on the next event / on reconnect.
       this._enqueue(event);
 
+      // AUTOSCALE HYGIENE: while the socket is closed (idle-disconnected or
+      // dropped), this tab must generate ZERO HTTP traffic — a POST from a
+      // passive tab is an inbound request that wakes / keeps up the autoscale
+      // instance. Events stay queued in localStorage and drain on the next
+      // real (deliberate) reconnect via onOpen()'s flush.
+      if (this.state !== 'connected') return;
+
       // For unload/page-hide we use sendBeacon — fetch in a tearing-down page
       // is unreliable even with keepalive; sendBeacon is the spec-blessed path.
       const isUnload =

@@ -27,8 +27,7 @@ export interface GameConfig {
   edgePenalty: number;
   
   // Enhanced space detection weights
-  selfEnoughSpace: number;
-  selfSpaceOptimistic: number;
+  selfSpace: number;       // Continuous contest-aware survival room (sqrt-scaled; room == length → 1.0)
   alliesEnoughSpace: number;
   opponentsEnoughSpace: number;
   
@@ -43,6 +42,12 @@ export interface GameConfig {
   // User-directed waypoint weights (set via centaur UI: alt-click = green goto, shift-click = blue near)
   waypointGoto: number;  // Strong pull toward green waypoint (go to this cell ASAP)
   waypointNear: number;  // Pull toward blue waypoint + keep path open to it
+
+  // Offensive aggression weight
+  aggression: number;            // Reward for hunting enemies we strictly out-invulnerate (closing in on / landing on their head/body)
+
+  // Hard trap survival weight
+  trapped: number;               // Strongly-negative penalty for entering a clearly-fatal dead-end pocket (no tail-chase, not enough room to outlast our length)
   
   // Simulation parameters
   maxSimulationDepth: number;
@@ -54,6 +59,12 @@ export interface GameConfig {
   
   // Centaur play mode settings
   autoFirstMove: boolean;
+
+  // Idle policy: minutes without user activity before WebSocket connections
+  // are considered idle (client shows overlay, server sweeps the socket),
+  // releasing the autoscale deployment to scale to zero. Runtime-configurable
+  // so idle behavior can be tested in production without a redeploy.
+  idleTimeoutMinutes: number;
 }
 
 export const DEFAULT_CONFIG: GameConfig = {
@@ -80,10 +91,9 @@ export const DEFAULT_CONFIG: GameConfig = {
   edgePenalty: 50.0,
   
   // Enhanced space detection weights
-  selfEnoughSpace: 10.0,
-  selfSpaceOptimistic: 5.0,
-  alliesEnoughSpace: 5.0,
-  opponentsEnoughSpace: -5.0,
+  selfSpace: 120,
+  alliesEnoughSpace: 15.0,
+  opponentsEnoughSpace: -15.0,
   
   // Life/death weights
   kills: 0,
@@ -100,6 +110,16 @@ export const DEFAULT_CONFIG: GameConfig = {
   // penalty (-500) still wins because it's a flat per-death stat.
   waypointGoto: 2500,  // Strong pull toward green waypoint — top priority after survival
   waypointNear: 2000,  // Pull toward blue waypoint + path-open bonus
+
+  // Offensive aggression weight (conservative: max stat 2 → max +50, far below the
+  // death penalty of -500, so survival always dominates aggression)
+  aggression: 25,
+
+  // Hard trap survival weight: a clearly-fatal pocket is effectively a death, so
+  // this dominates every non-survival heuristic. The candidate-level veto in the
+  // decision engine is the hard guarantee; this weight ensures the signal also
+  // dominates scoring when a veto is not possible.
+  trapped: -600,
   
   // Simulation parameters
   maxSimulationDepth: 1,
@@ -110,5 +130,8 @@ export const DEFAULT_CONFIG: GameConfig = {
   maxLookaheadTurns: 5,
   
   // Centaur play mode settings
-  autoFirstMove: false
+  autoFirstMove: false,
+
+  // Idle policy
+  idleTimeoutMinutes: 30
 };

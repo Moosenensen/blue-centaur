@@ -70,12 +70,29 @@
     .cell-button:hover { background: rgba(255, 255, 255, 0.1); }
     .snake-info-container { margin-bottom: 15px; }
     .snake-info-list {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px; align-items: start;
     }
     .snake-info-item {
       background: #2a2a2a; border-radius: 6px; padding: 8px;
       display: flex; align-items: center; gap: 8px;
     }
+    .team-group { margin-bottom: 4px; }
+    .team-group-header {
+      display: flex; align-items: center; gap: 8px; font-weight: 700;
+      font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;
+      margin: 4px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #444;
+    }
+    .team-group-header.our-team { color: #4CAF50; }
+    .team-group-header.enemy-team { color: #e57373; }
+    .team-group-swatch {
+      display: inline-block; width: 12px; height: 12px; border-radius: 3px;
+      border: 1px solid #555; flex-shrink: 0;
+    }
+    .team-group .snake-info-item { margin-bottom: 6px; }
+    .snake-info-item.selectable { cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+    .snake-info-item.selectable:hover { background: #333; }
+    .snake-info-item.active-perspective { background: #3a4a5a; outline: 2px solid #4CAF50; }
     .snake-color-box {
       width: 20px; height: 20px; border-radius: 4px;
       border: 2px solid #444; flex-shrink: 0;
@@ -95,6 +112,15 @@
       display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
     }
     .selected-snake-name { font-size: 16px; font-weight: 600; }
+    .intent-mode-badge {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.04em; padding: 3px 8px; border-radius: 10px;
+      color: #fff; background: #777;
+    }
+    .intent-mode-badge.mode-heuristic { background: #777; }
+    .intent-mode-badge.mode-manual { background: #9c27b0; }
+    .intent-mode-badge.mode-queue { background: #2196F3; }
+    .intent-mode-badge.mode-waypoint { background: #4CAF50; }
     .no-selection-msg {
       text-align: center; padding: 20px; color: #666; font-size: 14px;
     }
@@ -200,14 +226,6 @@
     }
     .confirm-btn { background: #4CAF50; color: white; }
     .cancel-btn { background: #444; color: #ccc; }
-    .committed-cell-checkmark {
-      position: absolute; pointer-events: none;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 24px; z-index: 15;
-      background: rgba(156, 39, 176, 0.25);
-      border: 3px solid #9C27B0;
-      border-radius: 4px;
-    }
     #premoveBanner {
       display: none; align-items: center; gap: 10px;
       padding: 6px 10px; margin-bottom: 8px; border-radius: 4px;
@@ -259,6 +277,48 @@
       font-size: 10px; color: #fff;
     }
     .kbd-pill:hover .kbd-tip { opacity: 1; }
+    #premoveBanner .pm-notice {
+      font-weight: 600; color: #ffd180; margin-left: 6px;
+    }
+    .canvas-wrapper.premove-mode #gameCanvas {
+      border-color: #2196F3;
+      box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.35), 0 0 18px rgba(33, 150, 243, 0.45);
+    }
+    @keyframes premove-reject-flash {
+      0%   { background: rgba(244, 67, 54, 0.55); border-color: #f44336; }
+      60%  { background: rgba(244, 67, 54, 0.25); border-color: #f44336; }
+      100% { background: rgba(244, 67, 54, 0); border-color: rgba(244, 67, 54, 0); }
+    }
+    .premove-reject-flash {
+      position: absolute; pointer-events: none; z-index: 16;
+      border: 3px solid #f44336; box-sizing: border-box; border-radius: 4px;
+      animation: premove-reject-flash 600ms ease-out forwards;
+    }
+    .turn-controls {
+      background: #2a2a2a; border-radius: 8px; padding: 12px 15px; margin-bottom: 15px;
+    }
+    .turn-controls-row { display: flex; align-items: center; gap: 12px; }
+    .turn-slider { flex: 1; cursor: pointer; }
+    .view-mode-badge {
+      font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 12px;
+      white-space: nowrap; letter-spacing: 0.03em;
+    }
+    .view-mode-badge.live { background: rgba(76,175,80,0.18); color: #81c784; }
+    .view-mode-badge.historic { background: rgba(255,152,0,0.18); color: #ffb74d; }
+    .turn-nav-row {
+      display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 10px;
+    }
+    .turn-nav-btn {
+      background: #2e7d32; color: #fff; border: none; padding: 6px 12px; min-width: 40px;
+      border-radius: 4px; font-size: 14px; font-weight: 600; cursor: pointer; line-height: 1.2;
+    }
+    .turn-nav-btn:hover:not(:disabled) { background: #388e3c; }
+    .turn-nav-btn:disabled { background: #333; color: #666; cursor: default; }
+    .turn-nav-counter {
+      font-size: 13px; font-weight: 700; color: #ddd; min-width: 84px; text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+    .turn-controls-info { margin-top: 6px; font-size: 12px; color: #888; min-height: 14px; }
     @media (min-width: 768px) {
       .main-content { padding: 20px; }
       .board-container { display: flex; gap: 20px; }
@@ -299,11 +359,11 @@
                 <span class="kbd-tip">
                   <strong>Q — toggle premove mode</strong><br>
                   While on, clicking adjacent squares plans a multi-step path.
-                  Each turn the queue's next direction is submitted automatically.
-                  Click the head to clear, click an existing waypoint to truncate.
-                  The plan persists across deselect / takeover and is broadcast to
-                  every viewer. If you manually submit a different direction, the
-                  rest of the queue is discarded.
+                  Each turn the queue's next direction stages automatically and
+                  commits at the turn deadline. Click the head to clear, click an
+                  existing waypoint to truncate. The plan persists across deselect /
+                  takeover and is broadcast to every viewer. If you manually stage a
+                  different direction, the rest of the queue is discarded.
                 </span>
               </span>
               <span class="kbd-pill">
@@ -311,9 +371,9 @@
                 <span class="kbd-tip">
                   <strong>Tab — hold this snake</strong><br>
                   Defers the auto-pilot for the current turn so you have time to
-                  think. If you don't submit a move before the turn deadline, the
-                  bot's best move is submitted automatically (so the snake never
-                  dies from inaction). <code>Space</code> submits, <code>Esc</code> deselects.
+                  think. Whatever is staged at the turn deadline (the bot's best
+                  move unless you stage your own) is committed automatically, so the
+                  snake never dies from inaction. <code>Space</code> stages, <code>Esc</code> deselects.
                 </span>
               </span>
               <span class="kbd-pill" style="background:rgba(76,175,80,0.18); border-color:#4caf50;">
@@ -339,14 +399,35 @@
             </div>
             <div id="firstMoveIndicator" style="display: none; background: #ff9800; color: #fff; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; white-space: nowrap;">FIRST MOVE — ALL SNAKES HELD</div>
               <button id="releaseAllBtn" onclick="releaseAllHolds()" style="display: none; background: #f44336; color: #fff; border: none; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer;">Release all holds</button>
+              <button id="submitAllBtn" onclick="submitAll()" style="background: #2e7d32; color: #fff; border: none; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 700; cursor: pointer; margin-left: 6px;">Submit All</button>
               <button id="suicideBtn" onclick="suicideAll()" style="background: #8b0000; color: #fff; border: none; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 700; cursor: pointer; margin-left: 6px;">Suicide All</button>
               <div class="timer-display idle" id="timerDisplay">--</div>
+              <label id="commitBufferLabel" style="display: flex; align-items: center; gap: 3px; font-size: 11px; color: #aaa; white-space: nowrap;" title="Safety buffer: the move auto-commits this many milliseconds before the game server's deadline. Applies to all viewers of this game.">
+                Buffer
+                <input type="number" id="commitBufferInput" min="100" max="5000" step="100" style="width: 62px; background: #1e1e1e; color: #ddd; border: 1px solid #444; border-radius: 4px; padding: 2px 4px; font-size: 11px;">
+                ms
+              </label>
               <div class="ping-display" id="pingDisplay"></div>
             </div>
+          </div>
+          <div class="turn-controls" id="turnControls" style="display:none;">
+            <div class="turn-controls-row">
+              <span class="view-mode-badge live" id="viewModeBadge">● LIVE</span>
+              <input type="range" id="playTurnSlider" class="turn-slider" min="0" max="0" value="0">
+            </div>
+            <div class="turn-nav-row">
+              <button id="navStartBtn" class="turn-nav-btn" title="Go to start" onclick="navGoToStart()">|&#x25C0;</button>
+              <button id="navPrevBtn" class="turn-nav-btn" title="Previous turn" onclick="navPrevTurn()">&#x2190;</button>
+              <span class="turn-nav-counter" id="turnNavCounter">0 of 0</span>
+              <button id="navNextBtn" class="turn-nav-btn" title="Next turn" onclick="navNextTurn()">&#x2192;</button>
+              <button id="navEndBtn" class="turn-nav-btn" title="Go to live" onclick="navGoToEnd()">&#x25B6;|</button>
+            </div>
+            <div class="turn-controls-info" id="turnControlsInfo"></div>
           </div>
           <div id="premoveBanner">
             <span id="premoveBannerLabel">Premove ON</span>
             <span class="pm-hint">click adjacent squares to plan a path · [Q] toggle · click head to clear</span>
+            <span class="pm-notice" id="premoveBannerNotice"></span>
             <button class="pm-clear" id="premoveClearBtn" onclick="clearPremoveQueue()">Clear path</button>
           </div>
           <div class="canvas-wrapper">
@@ -367,14 +448,15 @@
         <div id="selectionUI" style="display: none;">
           <div class="selected-snake-header">
             <span class="selected-snake-name" id="selectedSnakeName"></span>
+            <span class="intent-mode-badge" id="intentModeBadge"></span>
           </div>
 
           <div class="move-controls" id="moveControls">
             <h3>Move Selection</h3>
             <div class="move-buttons" id="moveButtons"></div>
             <div class="submit-section">
-              <button class="submit-btn" id="submitBtn" onclick="submitMove()" disabled>
-                Submit Move <span class="shortcut">[Space]</span>
+              <button class="submit-btn" id="submitBtn" onclick="stageSelectedMove()" disabled>
+                Stage Move <span class="shortcut">[Space]</span>
               </button>
               <button class="submit-btn" id="holdBtn" onclick="holdSelectedSnake()" style="background: #ff9800; margin-top: 8px;">
                 Hold this snake (defer to end of turn) <span class="shortcut">[Tab]</span>
@@ -419,11 +501,26 @@
     </div>
   </div>
 
+  <div class="confirm-dialog-overlay" id="fatalMoveDialog">
+    <div class="confirm-dialog">
+      <h3>⚠ Certain Death</h3>
+      <p id="fatalMoveDialogText">This move is certain death. Confirm it anyway?</p>
+      <div class="confirm-dialog-buttons">
+        <button class="confirm-btn" id="confirmFatalMoveBtn">Confirm (Enter)</button>
+        <button class="cancel-btn" id="cancelFatalMoveBtn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <script src="/board-renderer.js"></script>
+  <script src="/idle-policy.js"></script>
+  <script src="/server-status-badge.js"></script>
+  <script src="/idle-watcher.js"></script>
   <script src="/connection-debug.js"></script>
   <script>
     const pathParts = window.location.pathname.split('/');
-    const gameId = pathParts[2] || '';
+    // Works for both /game/:id (unified) and legacy /play/:id URLs.
+    const gameId = decodeURIComponent(pathParts[2] || '');
 
     if (!sessionStorage.getItem('centaurUserId')) {
       sessionStorage.setItem('centaurUserId', crypto.randomUUID());
@@ -434,15 +531,35 @@
       userId: sessionStorage.getItem('centaurUserId'),
     });
     const userId = sessionStorage.getItem('centaurUserId');
+    const idleWatcher = window.IdleWatcher.attach({
+      getWS: () => ws,
+      reconnect: () => connectWebSocket(),
+    });
 
     let ws = null;
     let moveState = null;
     let currentGameState = null;
+    let previousGameState = null;  // prior-turn board, for dead-head markers
+    // Per-snake last move WE committed ({ [snakeId]: 'up' }). Overwritten on each
+    // commit and never cleared, so a snake that dies retains the move it submitted
+    // on its death turn — the ghost (intended) marker for that snake's death.
+    let lastCommittedMoves = {};
     let moveSubmitted = false;
     let userSelectedMove = null;
     let turnTimerInterval = null;
     let turnExpiryTime = null;
     let measuredPing = 0;
+    // Safety-timer buffer (ms): the server commits the staged move at
+    // game-server deadline − commitBufferMs. Shared across all viewers;
+    // last-used value remembered locally and re-applied on connect.
+    let commitBufferMs = (() => {
+      const stored = parseInt(localStorage.getItem('commitBufferMs'), 10);
+      return Number.isFinite(stored) ? Math.min(5000, Math.max(100, stored)) : 500;
+    })();
+    // The buffer the server actually armed the current turn's safety timer
+    // with (differs on turn 0 warm-up and for mid-turn setting changes). The
+    // countdown uses this so 0.0s always matches the real commit moment.
+    let effectiveCommitBufferMs = commitBufferMs;
     let reconnectTimer = null;
     let gameEnded = false;
     let gameEndedSnakes = {};
@@ -459,8 +576,118 @@
     let premoveMode = false;
     let premoveQueues = {};  // { [snakeId]: [{x,y}, ...] } — mirror of server state, broadcast to all clients
     let waypoints = {};      // { [snakeId]: {type:'green'|'blue', x, y} } — user-directed target per snake
+    let gotoRoutes = {};     // { [snakeId]: [{x,y}, ...] } — live green "goto" path from the pathfinder
+    let activeIntentModes = {};  // { [snakeId]: 'heuristic'|'manual'|'queue'|'waypoint' } — active next-move source
+    let premoveBannerNoticeTimer = null;
+
+    // ── Turn scrubbing (live vs historic view) ──────────────────────────────
+    // The play page can scrub back through earlier turns of the CURRENT game,
+    // rendered read-only by reusing the exact BoardRenderer path + decision-log
+    // data source (`/api/logs`) the Game History viewer uses. Live WS updates
+    // keep flowing into the live-state variables above while scrubbing; they
+    // just don't yank the displayed board until the user returns to live.
+    let viewMode = 'live';            // 'live' | 'historic'
+    // Finished games have no live WebSocket state: the whole page becomes a
+    // read-only replay driven entirely by /api/logs. In this mode viewMode is
+    // always 'historic', liveMaxTurn is the last logged turn, and there is no
+    // live edge to return to.
+    let finishedMode = false;
+    let liveMaxTurn = 0;              // highest live turn seen → slider max
+    let historicSnakeId = null;       // snake perspective being inspected (null = default)
+    // Snakes with logged decisions in THIS game, derived from the logs metadata
+    // API (same source enterFinishedMode uses). Selectability while scrubbing
+    // history must be keyed on this HISTORICAL fact — not on the live
+    // controlledSnakeIds set, which drops a snake the instant it dies (or on
+    // reconnect after a death), making its logged past un-inspectable.
+    let historyLoggedSnakeIds = new Set();
+    let historyLoggedFetch = null;    // in-flight/settled fetch promise (fetch once per page)
+    const historicCache = new Map();  // snakeId → { decisions, turnToIndex }
+    let historicDecisions = null;     // decisions for the currently-viewed snake
+    let historicTurnToIndex = {};     // turn number → index into historicDecisions
+    let historicIndex = 0;            // current decision index being viewed
+    let historicTurnNumber = 0;       // current turn number being viewed
+    let historicMoveState = null;     // moveState for the historic board/breakdown
+    // What renderHistoricAtTurn resolved for the currently displayed turn:
+    // boardRow drives the board (may come from ANY cached team log), prevRow is
+    // the row before it in the SAME log (for death-marker detection), ownRow is
+    // the inspected snake's decision at that turn (null after its death).
+    let historicRenderCtx = null;
+    const historicInflight = new Map(); // snakeId → in-flight fetch promise (dedupe)
+    // Every snake ever observed in this game (live updates or logged turns):
+    // id → { snake, turn } at its latest known appearance. Drives the
+    // full-roster team list so dead snakes stay visible (greyed out) with
+    // their final length.
+    const snakeLastSeen = new Map();
+    let isScrubbing = false;          // true while the user is touching the slider
+    let scrubLoadToken = 0;           // latest-wins token for async historic loads
+    let scrubRenderPending = false;   // rAF coalescing flag for live drag rendering
+    let scrubRenderTurn = 0;          // latest dragged turn awaiting a preview frame
+    let snakeInfoRenderedTurn = -1;   // data turn the side snake list currently shows
+    // Which control owns the arrow keys while viewing history ("active element"
+    // principle): the last thing the user interacted with. Touching the scrub
+    // bar → arrows scrub turns; selecting a snake or a candidate move → arrows
+    // move the candidate selector. Esc hands focus back to the scrubber.
+    let historicKeyFocus = 'scrubber'; // 'scrubber' | 'candidates'
+
+    // ────────────────────────────────────────────────────────────────────────
+    // Selection vs. staging vs. commit (three distinct concepts):
+    //   - SELECTION (the purple box) is a purely local inspection cursor.
+    //     Clicking a candidate cell or pressing arrows/WASD moves the box and
+    //     updates the breakdown table + projected-territory overlay ONLY. It
+    //     sends nothing to the server, stages nothing, and never clears the
+    //     queue. See `selectMove`.
+    //   - STAGING (the arrow) is the snake's intended next move, held by the
+    //     server as a single `stagedMove` per snake and broadcast via the
+    //     stagedMoves map (grey = bot-seeded, user color = human). Pressing
+    //     Space stages the currently selected cell as a manual override (which
+    //     drops the queue/waypoint per the server contract). Queued moves and
+    //     goto/waypoints also stage server-side. See `stageSelectedMove`.
+    //   - COMMIT happens ONLY at the turn deadline via the server's per-snake
+    //     safety timer, which reads the stored `stagedMove`. The client never
+    //     commits; it flips a snake into the committed (double-arrow) state
+    //     only when the server broadcasts `move-committed`.
+    //
+    // Ownership:
+    //   - The server owns staged-move + queue state and broadcasts both. The
+    //     client renders the stagedMoves map directly; it never synthesises a
+    //     fallback arrow locally.
+    //   - Q-mode (premoveMode flag): purely local input mode. Controls what
+    //     canvas clicks DO (plan vs select), not whether the queue runs.
+    //
+    // Projected head: after a move is committed this turn, all "next turn"
+    // rendering (Q-mode legal-cell outlines, candidate-arrow cells, queue
+    // extension via clicks) anchors at getProjectedHead() — the cell the
+    // snake's head will occupy after the committed move resolves — rather
+    // than the now-stale current head.
+    // ────────────────────────────────────────────────────────────────────────
 
     document.getElementById('pageTitle').textContent = `Game ${gameId}`;
+
+    // If the WebSocket never opens (or the game turns out to be finished, so the
+    // server keeps no live state and pushes no board), don't sit on the
+    // "Connecting… / Waiting for game data" overlay forever. Ask the REST API
+    // whether the game is active: 404 => load the read-only replay without a WS;
+    // 200 => it's genuinely live, so keep waiting for the socket; network error
+    // => surface a clear "can't reach server" message instead of an infinite
+    // spinner.
+    async function resolveFinishedIfNotLive() {
+      if (finishedMode || currentGameState) return;
+      try {
+        const resp = await fetch(`/api/play/game/${encodeURIComponent(gameId)}`);
+        if (resp.ok) return; // live on the server; keep waiting for the WS
+        if (resp.status === 404) {
+          enterFinishedMode();
+          return;
+        }
+      } catch (e) {
+        console.error('Live-state check failed:', e);
+        const overlay = document.getElementById('waitingOverlay');
+        if (overlay && !finishedMode && !currentGameState) {
+          overlay.innerHTML =
+            '<h2>Can\u2019t reach the server</h2><p>The game server isn\u2019t responding. Please refresh in a moment.</p>';
+        }
+      }
+    }
 
     function connectWebSocket() {
       const statusEl = document.getElementById('connectionStatus');
@@ -470,12 +697,18 @@
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
 
+      const openTimeout = setTimeout(() => {
+        if (ws.readyState !== WebSocket.OPEN) resolveFinishedIfNotLive();
+      }, 4000);
+
       ws.onopen = () => {
+        clearTimeout(openTimeout);
         statusEl.className = 'connection-status connected';
         statusEl.textContent = 'Connected';
         ws.send(JSON.stringify({ type: 'subscribe-game', gameId, userId }));
         if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
         wsDebug.onOpen();
+        idleWatcher.onConnected();
       };
 
       ws.onmessage = (event) => {
@@ -492,6 +725,24 @@
         const codeStr = event && typeof event.code === 'number' ? ` (code ${event.code})` : '';
         statusEl.textContent = 'Disconnected' + codeStr;
         wsDebug.onClose(event);
+        const wasIdle = idleWatcher.onClose(event);
+        if (wasIdle) {
+          // Distinguish the idle close in the connection log from generic
+          // network drops so /connection-debug shows it as its own row.
+          fetch('/api/connection-log/client', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'client-idle-close',
+              gameId,
+              userId,
+              code: event.code,
+              reason: event.reason || '',
+            }),
+          }).catch(() => {});
+          return;
+        }
+        if (idleWatcher.shouldSuppressReconnect()) return;
         reconnectTimer = setTimeout(() => {
           wsDebug.onReconnectAttempt();
           connectWebSocket();
@@ -512,6 +763,13 @@
           break;
         case 'game-subscribed':
           myColor = msg.userColor || '#888888';
+          // No live board state means the game is not active on the server:
+          // it either finished or never existed. Fall back to a read-only
+          // replay driven entirely by the decision logs.
+          if (!msg.boardState && !finishedMode) {
+            enterFinishedMode();
+            break;
+          }
           if (msg.boardState) {
             currentGameState = msg.boardState;
           }
@@ -542,8 +800,24 @@
           if (msg.waypoints) {
             waypoints = msg.waypoints;
           }
+          if (msg.routes) {
+            gotoRoutes = msg.routes;
+          }
+          if (msg.activeIntentModes) {
+            activeIntentModes = msg.activeIntentModes;
+          }
           measuredPing = msg.measuredPing || 0;
           turnExpiryTime = msg.turnExpiryTime || null;
+          if (typeof msg.commitBufferMs === 'number') {
+            commitBufferMs = msg.commitBufferMs;
+          }
+          if (typeof msg.effectiveCommitBufferMs === 'number') {
+            effectiveCommitBufferMs = msg.effectiveCommitBufferMs;
+          }
+          // Re-apply the locally remembered buffer so it persists across
+          // reloads (server default wins only if we have nothing stored).
+          applyStoredCommitBuffer();
+          updateCommitBufferInput();
           if (currentGameState) {
             showGameUI();
           }
@@ -551,10 +825,37 @@
           updateReleaseAllButton();
           break;
 
+        case 'commit-buffer-update':
+          if (typeof msg.commitBufferMs === 'number') {
+            commitBufferMs = msg.commitBufferMs;
+            updateCommitBufferInput();
+          }
+          break;
+
         case 'board-update':
+          // A new turn makes a pending fatal-move confirmation stale: the old
+          // turn already committed (bot fallback), so silently drop the dialog.
+          hideFatalMoveDialog();
+          // Snapshot the prior turn's board before overwriting so the renderer
+          // can mark heads of snakes that vanished this turn. Only re-anchor the
+          // snapshot when the turn actually advances (board-update can re-fire
+          // for the same turn as different snakes respond).
+          if (
+            currentGameState &&
+            (msg.gameState?.turn ?? -1) > (currentGameState.turn ?? -1)
+          ) {
+            previousGameState = currentGameState;
+          }
           currentGameState = msg.gameState;
           turnExpiryTime = msg.turnExpiryTime || null;
           measuredPing = msg.measuredPing || 0;
+          if (typeof msg.commitBufferMs === 'number') {
+            commitBufferMs = msg.commitBufferMs;
+            updateCommitBufferInput();
+          }
+          if (typeof msg.effectiveCommitBufferMs === 'number') {
+            effectiveCommitBufferMs = msg.effectiveCommitBufferMs;
+          }
           if (msg.selections) {
             selections = msg.selections;
           }
@@ -566,6 +867,12 @@
           }
           if (msg.waypoints) {
             waypoints = msg.waypoints;
+          }
+          if (msg.routes) {
+            gotoRoutes = msg.routes;
+          }
+          if (msg.activeIntentModes) {
+            activeIntentModes = msg.activeIntentModes;
           }
           stagedMoves = msg.stagedMoves || {};
           updateReleaseAllButton();
@@ -581,14 +888,21 @@
           userSelectedMove = null;
           analyticsFrozen = false;
 
-          document.getElementById('currentTurn').textContent = msg.turn;
-          document.getElementById('firstMoveIndicator').style.display = (msg.turn === 0) ? 'block' : 'none';
-          startTurnTimer();
-          renderGameBoard();
-          renderSnakeInfo();
-          if (selectedSnakeId) {
-            updateMoveControls();
+          liveMaxTurn = Math.max(liveMaxTurn, msg.turn);
+          if (viewMode === 'live') {
+            document.getElementById('currentTurn').textContent = msg.turn;
+            document.getElementById('firstMoveIndicator').style.display = (msg.turn === 0) ? 'block' : 'none';
+            startTurnTimer();
+            renderGameBoard();
+            renderSnakeInfo();
+            if (selectedSnakeId) {
+              updateMoveControls();
+            }
           }
+          // While viewing history, the slider range keeps growing with
+          // liveMaxTurn (set above); cached old turns stay valid, and a newer
+          // tail is fetched on demand only if the user scrubs past it.
+          updateTurnControls();
           break;
 
         case 'snake-turn-update': {
@@ -605,10 +919,26 @@
             committedMove: msg.committedMove,
           };
 
+          // This is the only per-snake update that always fires when a snake's
+          // path is recomputed, so refresh the live goto route + active mode
+          // maps here too (not just on board-update / selections-update) or the
+          // green route can render stale in multi-snake games.
+          if (msg.routes) {
+            gotoRoutes = msg.routes;
+          }
+          if (msg.activeIntentModes) {
+            activeIntentModes = msg.activeIntentModes;
+          }
+          // board-update only fires for the snake that advanced the turn, so
+          // the other snakes' staged (grey bot) arrows arrive here, when each
+          // reports its own /move. Apply the snapshot or those arrows go missing.
+          if (msg.stagedMoves) {
+            stagedMoves = msg.stagedMoves;
+          }
+
           if (snakeId === selectedSnakeId) {
             setupMoveStateForSnake(snakeId);
             updateMoveControls();
-            tryConsumePremove();
           }
           renderGameBoard();
           break;
@@ -621,6 +951,9 @@
               // (it lives on the server and persists across (de)selection).
               // Just turn off our local premove input mode so clicks behave
               // normally for the newly selected snake.
+              if (premoveMode) {
+                showBannerNotice('Planning off: switched snake');
+              }
               premoveMode = false;
               updatePremoveBanner();
             }
@@ -642,6 +975,14 @@
           break;
         }
 
+        case 'fatal-move-confirmation-needed':
+          // The server blocked our unconsented certain-death move and staged
+          // the bot's move instead. Ask the user to confirm; on confirm the
+          // server re-validates + stages the fatal move with consent. If the
+          // turn ends first, the dialog is stale and hides on board-update.
+          showFatalMoveDialog(msg.snakeId, msg.move, msg.turn);
+          break;
+
         case 'selections-update':
           selections = msg.selections || {};
           connectedUsers = msg.connectedUsers || [];
@@ -657,6 +998,12 @@
           if (msg.waypoints) {
             waypoints = msg.waypoints;
           }
+          if (msg.routes) {
+            gotoRoutes = msg.routes;
+          }
+          if (msg.activeIntentModes) {
+            activeIntentModes = msg.activeIntentModes;
+          }
           renderConnectedUsers();
           renderGameBoard();
           renderSnakeInfo();
@@ -669,6 +1016,9 @@
               // local input state but leave the snake's premove queue alone —
               // it belongs to the snake, not the user, and will keep executing
               // for whoever now controls it.
+              if (premoveMode) {
+                showBannerNotice('Planning off: another user took control');
+              }
               selectedSnakeId = null;
               moveState = null;
               moveSubmitted = false;
@@ -691,6 +1041,9 @@
           if (selectedSnakeId === msg.snakeId) {
             // Lost selection. Premove queue stays on the server for the snake
             // (the new controller will inherit it). Just clear our local state.
+            if (premoveMode) {
+              showBannerNotice('Planning off: selection revoked');
+            }
             selectedSnakeId = null;
             moveState = null;
             moveSubmitted = false;
@@ -710,35 +1063,6 @@
           }
           break;
 
-        case 'move-submitted':
-          if (msg.snakeId === selectedSnakeId) {
-            if (msg.success) {
-              moveSubmitted = true;
-              analyticsFrozen = true;
-              const csData = controlledSnakeTurnData[msg.snakeId];
-              if (csData) {
-                csData.moveCommitted = true;
-                csData.committedMove = msg.move;
-              }
-              updateMoveControls();
-              renderGameBoard();
-            } else {
-              // Server rejected the submit (no pending move, already
-              // resolved, etc). Reset our optimistic committed state so
-              // the user/premove can try again this turn.
-              moveSubmitted = false;
-              analyticsFrozen = false;
-              const csData = controlledSnakeTurnData[msg.snakeId];
-              if (csData) {
-                csData.moveCommitted = false;
-                csData.committedMove = null;
-              }
-              updateMoveControls();
-              renderGameBoard();
-            }
-          }
-          break;
-
         case 'move-committed':
           if (msg.snakeId) {
             const csData = controlledSnakeTurnData[msg.snakeId];
@@ -746,13 +1070,32 @@
               csData.moveCommitted = true;
               csData.committedMove = msg.move;
             }
+            // Remember the move we actually submitted for this snake so, if it
+            // dies this turn, the renderer can draw its intended (ghost) head.
+            if (msg.move) {
+              lastCommittedMoves[msg.snakeId] = msg.move;
+            }
+            // The server re-anchors the green goto route at the committed-move
+            // destination, so refresh the route/mode maps here too.
+            if (msg.routes) {
+              gotoRoutes = msg.routes;
+            }
+            if (msg.activeIntentModes) {
+              activeIntentModes = msg.activeIntentModes;
+            }
+            // Apply the refreshed staged map so the committing snake flips to
+            // its double (committed) arrow right away, for every viewer.
+            if (msg.stagedMoves) {
+              stagedMoves = msg.stagedMoves;
+            }
             if (msg.snakeId === selectedSnakeId) {
               moveSubmitted = true;
               analyticsFrozen = true;
+              // Bug A: re-root the candidate set at the projected head.
+              setupMoveStateForSnake(msg.snakeId);
               updateMoveControls();
-              renderGameBoard();
-
             }
+            renderGameBoard();
           }
           break;
 
@@ -765,13 +1108,29 @@
           // kept playing after ours died, plus the death-state turn itself).
           // We render that final state, then surface a Game Over banner.
           // Guard against a stale/duplicate /end rolling the UI backwards.
+          //
+          // No death-head derivation from /end here: a dead snake's authoritative
+          // final move comes from the NEXT turn's lastMoves, which the renderer
+          // reads off the board-update transition (previousGameState → current).
+          // The intended (ghost) head comes from lastCommittedMoves. See
+          // renderGameBoard.
           const currentTurn = currentGameState?.turn ?? -1;
           if (msg.finalGameState && msg.finalGameState.turn >= currentTurn) {
+            if (
+              currentGameState &&
+              msg.finalGameState.turn > (currentGameState.turn ?? -1)
+            ) {
+              previousGameState = currentGameState;
+            }
             currentGameState = msg.finalGameState;
-            document.getElementById('currentTurn').textContent = msg.finalGameState.turn;
-            document.getElementById('firstMoveIndicator').style.display = 'none';
-            renderGameBoard();
-            renderSnakeInfo();
+            liveMaxTurn = Math.max(liveMaxTurn, msg.finalGameState.turn);
+            if (viewMode === 'live') {
+              document.getElementById('currentTurn').textContent = msg.finalGameState.turn;
+              document.getElementById('firstMoveIndicator').style.display = 'none';
+              renderGameBoard();
+              renderSnakeInfo();
+            }
+            updateTurnControls();
           }
           gameEndedSnakes[msg.snakeId] = {
             turn: msg.turn,
@@ -799,6 +1158,13 @@
             }
           }
           renderGameOverBanner();
+          // The whole game is over: reactively convert this live page into the
+          // exact read-only replay it would be if freshly opened as a finished
+          // game — historic scrubbing, log-driven perspective, no live chrome.
+          // enterFinishedMode() is idempotent (guards on finishedMode).
+          if (msg.gameOver) {
+            enterFinishedMode();
+          }
           break;
         }
       }
@@ -849,11 +1215,15 @@
       document.getElementById('waitingOverlay').style.display = 'none';
       document.getElementById('gameUI').style.display = 'block';
       const turn = currentGameState?.turn || 0;
-      document.getElementById('currentTurn').textContent = turn;
-      document.getElementById('firstMoveIndicator').style.display = (turn === 0) ? 'block' : 'none';
-      renderGameBoard();
-      renderSnakeInfo();
-      startTurnTimer();
+      liveMaxTurn = Math.max(liveMaxTurn, turn);
+      if (viewMode === 'live') {
+        document.getElementById('currentTurn').textContent = turn;
+        document.getElementById('firstMoveIndicator').style.display = (turn === 0) ? 'block' : 'none';
+        renderGameBoard();
+        renderSnakeInfo();
+        startTurnTimer();
+      }
+      updateTurnControls();
     }
 
     function setupMoveStateForSnake(snakeId) {
@@ -879,7 +1249,16 @@
       moveState = BoardRenderer.processMoveEvaluations(evalData, td.safeMoves || [], head, null);
 
       if (csData.moveCommitted && csData.committedMove) {
-        moveState.selectedMove = csData.committedMove;
+        // Bug A fix: after the move is committed, candidates for "what next"
+        // must come from the projected head (head + committed offset), not
+        // the stale current head. buildPostCommitCandidates gives us the 3
+        // forward options (reverse-of-committed excluded) rooted there.
+        const post = buildPostCommitCandidates(snakeId);
+        if (post) {
+          moveState = post;
+        } else {
+          moveState.selectedMove = csData.committedMove;
+        }
         moveSubmitted = true;
         analyticsFrozen = true;
       } else {
@@ -888,9 +1267,17 @@
         if (userSelectedMove) {
           moveState.selectedMove = userSelectedMove;
         } else {
-          const bestMove = getBestBotMove();
-          if (bestMove) {
-            moveState.selectedMove = bestMove;
+          // Default the highlighted candidate to this snake's currently staged
+          // move (grey bot-seeded or user-colored staged arrow) so the initial
+          // selection matches what the snake is actually about to do. Fall back
+          // to the best bot move if no staged move exists.
+          const staged = stagedMoves[snakeId];
+          const stagedMove = staged && staged.move ? staged.move : null;
+          const defaultMove = (stagedMove && moveState.moves[stagedMove])
+            ? stagedMove
+            : getBestBotMove();
+          if (defaultMove) {
+            moveState.selectedMove = defaultMove;
           }
         }
       }
@@ -906,15 +1293,32 @@
       const name = snake?.name || csInfo?.name || selectedSnakeId;
       const emoji = snake?.emoji || csInfo?.emoji || '\u{1F40D}';
       document.getElementById('selectedSnakeName').textContent = `${emoji} ${name}`;
+      updateIntentModeBadge();
 
       updateMoveControls();
+    }
+
+    // Reflect the snake's active next-move source (Heuristic | Manual | Queue |
+    // Waypoint) as a colored badge next to its name. Colors match the board
+    // overlays: blue = queue, green = waypoint route.
+    function updateIntentModeBadge() {
+      const badge = document.getElementById('intentModeBadge');
+      if (!badge) return;
+      const mode = (selectedSnakeId && activeIntentModes[selectedSnakeId]) || 'heuristic';
+      const labels = {
+        heuristic: 'Heuristic',
+        manual: 'Manual',
+        queue: 'Queue',
+        waypoint: 'Waypoint',
+      };
+      badge.textContent = labels[mode] || 'Heuristic';
+      badge.className = `intent-mode-badge mode-${mode}`;
     }
 
     function hideSelectionUI() {
       document.getElementById('noSelectionMsg').style.display = 'block';
       document.getElementById('selectionUI').style.display = 'none';
       document.getElementById('selectedSnakePanel').classList.remove('active');
-      clearOverlayCheckmarks();
     }
 
     function renderConnectedUsers() {
@@ -947,8 +1351,21 @@
       }
     }
 
+    function applyMoveToCell(head, move) {
+      switch (move) {
+        case 'up': return { x: head.x, y: head.y + 1 };
+        case 'down': return { x: head.x, y: head.y - 1 };
+        case 'left': return { x: head.x - 1, y: head.y };
+        case 'right': return { x: head.x + 1, y: head.y };
+      }
+      return head;
+    }
+
     function renderGameBoard() {
       if (!currentGameState) return;
+      // While scrubbing history, live WS updates still refresh currentGameState
+      // and the overlay maps above, but must not repaint the board being viewed.
+      if (viewMode === 'historic') return;
       const canvas = document.getElementById('gameCanvas');
 
       const selectionGlows = {};
@@ -959,27 +1376,41 @@
       }
 
       const renderMoveState = moveSubmitted ? null : moveState;
-      const effectiveStagedMoves = Object.assign({}, stagedMoves);
-      for (const snakeId of controlledSnakeIds) {
-        if (effectiveStagedMoves[snakeId]) continue;
-        const csData = controlledSnakeTurnData[snakeId];
-        const botMove = csData?.turnData?.botRecommendation;
-        if (botMove) {
-          effectiveStagedMoves[snakeId] = {
-            move: botMove,
-            committed: false,
-            color: '#888888',
-          };
-        }
-      }
+      // Staged moves are fully server-owned: heuristic-seeded ones render grey,
+      // human-staged ones in the controller's color, and committed ones as a
+      // double arrow (see board-renderer). The client renders the broadcast
+      // stagedMoves snapshot directly — no local synthesis.
+      // Death markers are derived uniformly for every snake (ours and enemies)
+      // by the renderer's disappearance path: a snake present last turn but gone
+      // this turn gets a solid marker from currentGameState.lastMoves (the move
+      // that killed it) and — for snakes we controlled — a ghost marker from the
+      // move we committed (lastCommittedMoves), drawn only when it differs. This
+      // naturally shows only on the death turn: next turn the snake is already
+      // absent from previousBoard, so no marker is drawn.
       const cellSize = BoardRenderer.renderBoard(canvas, currentGameState, renderMoveState, {
         snakeId: selectedSnakeId,
         showChosenArrow: false,
         controlledSnakeIds: controlledSnakeIds,
         selectionGlows: selectionGlows,
         holds: holds,
-        stagedMoves: effectiveStagedMoves,
+        stagedMoves: stagedMoves,
+        previousBoard: previousGameState?.board || null,
+        // Authoritative per-snake moves from the engine → solid death heads.
+        lastMoves: currentGameState?.lastMoves || null,
+        // The moves we committed → ghost (intended) death heads for our snakes.
+        submittedMoves: lastCommittedMoves,
       });
+
+      // Q-mode visual cue: outline the four orthogonally-adjacent cells to
+      // the selected snake's head so the user can see exactly where clicks
+      // will land. Drawn even when the queue is empty (the "Q trail doesn't
+      // activate" bug).
+      if (premoveMode && selectedSnakeId) {
+        const selSnake = currentGameState.board.snakes.find(s => s.id === selectedSnakeId);
+        if (selSnake) {
+          drawPremoveLegalCells(canvas, selSnake, currentGameState.board, cellSize);
+        }
+      }
 
       // Render every snake's premove path so all connected clients can see
       // what each controller has planned. Color comes from whoever is
@@ -991,6 +1422,15 @@
         const sel = selections[snake.id];
         const color = (sel && sel.color) || snake.color || '#2196F3';
         drawPremoveOverlay(canvas, snake, pq, currentGameState.board, cellSize, color);
+      }
+
+      // Render every snake's live green "goto" route (head → green waypoint),
+      // reusing the same numbered dashed overlay as the queue but in green so
+      // it reads as a distinct intent. The pathfinder refreshes it each turn.
+      for (const snake of currentGameState.board.snakes) {
+        const route = gotoRoutes[snake.id];
+        if (!route || route.length === 0) continue;
+        drawPremoveOverlay(canvas, snake, route, currentGameState.board, cellSize, '#4CAF50');
       }
 
       // Render every snake's waypoint (green or blue) so observers can see
@@ -1006,60 +1446,71 @@
       if (selectedSnakeId && moveState && !moveSubmitted && !premoveMode) {
         BoardRenderer.createBoardOverlay(
           document.getElementById('boardOverlay'), canvas,
-          currentGameState.board, moveState, selectMove
+          currentGameState.board, moveState,
+          // Alt/shift clicks on candidate cells are waypoint clicks — forward
+          // them to the canvas handler (which owns the waypoint logic) instead
+          // of moving the purple move selection. Plain clicks select the move.
+          (direction, e) => {
+            if (e && (e.altKey || e.shiftKey)) {
+              handleCanvasClick(e);
+            } else {
+              selectMove(direction);
+            }
+          }
         );
       } else {
         document.getElementById('boardOverlay').innerHTML = '';
       }
-
-      renderCommittedCheckmarks(cellSize);
     }
 
-    function renderCommittedCheckmarks(cellSize) {
-      clearOverlayCheckmarks();
-      if (!selectedSnakeId || !moveSubmitted || !moveState) return;
-
-      const csData = controlledSnakeTurnData[selectedSnakeId];
-      if (!csData || !csData.committedMove) return;
-
-      const move = moveState.moves[csData.committedMove];
-      if (!move || !move.position) return;
-
-      const canvas = document.getElementById('gameCanvas');
-      const board = currentGameState.board;
-      const displayWidth = canvas.clientWidth || canvas.width;
-      const displayHeight = canvas.clientHeight || canvas.height;
-      const displayCellSize = Math.min(displayWidth / board.width, displayHeight / board.height);
-
-      const x = move.position.x * displayCellSize;
-      const y = (board.height - 1 - move.position.y) * displayCellSize;
-
-      const checkmark = document.createElement('div');
-      checkmark.className = 'committed-cell-checkmark';
-      checkmark.style.left = (canvas.offsetLeft + x) + 'px';
-      checkmark.style.top = (canvas.offsetTop + y) + 'px';
-      checkmark.style.width = displayCellSize + 'px';
-      checkmark.style.height = displayCellSize + 'px';
-      checkmark.textContent = '\u2713';
-      checkmark.style.color = '#9C27B0';
-
-      const wrapper = document.querySelector('.canvas-wrapper');
-      wrapper.appendChild(checkmark);
+    // Record every snake present in a game state so the roster remembers dead
+    // snakes (with their final length) after the board drops them.
+    function recordSnakesSeen(gameState) {
+      if (!gameState || !gameState.board || !gameState.board.snakes) return;
+      const t = gameState.turn ?? 0;
+      for (const s of gameState.board.snakes) {
+        const prev = snakeLastSeen.get(s.id);
+        if (!prev || t >= prev.turn) snakeLastSeen.set(s.id, { snake: s, turn: t });
+      }
     }
 
-    function clearOverlayCheckmarks() {
-      document.querySelectorAll('.committed-cell-checkmark').forEach(el => el.remove());
+    // Snakes known to this game but absent from the given board state — i.e.
+    // dead as of that turn. Returns their last-known snake objects.
+    function deadSnakesFor(gameState) {
+      if (!gameState || !gameState.board || !gameState.board.snakes) return [];
+      const alive = new Set(gameState.board.snakes.map((s) => s.id));
+      const dead = [];
+      for (const rec of snakeLastSeen.values()) {
+        if (!alive.has(rec.snake.id)) dead.push(rec.snake);
+      }
+      return dead;
     }
 
     function renderSnakeInfo() {
       if (!currentGameState) return;
+      recordSnakesSeen(currentGameState);
+      if (viewMode === 'historic') return;
       BoardRenderer.renderSnakeInfo(
-        document.getElementById('snakeInfoList'), currentGameState, selectedSnakeId, holds
+        document.getElementById('snakeInfoList'), currentGameState, selectedSnakeId, holds,
+        { groupByTeam: true, onSelectSnake: selectSnakeForControl, selectableSnakeIds: controlledSnakeIds,
+          deadSnakes: deadSnakesFor(currentGameState) }
       );
     }
 
+    // Select one of our snakes for live control from the team list (mirrors the
+    // board-click path; the server resolves any contested selection).
+    function selectSnakeForControl(snakeId) {
+      if (!snakeId || !controlledSnakeIds.has(snakeId)) return;
+      if (snakeId === selectedSnakeId) return;
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'select-snake', snakeId }));
+      }
+    }
+
     function updateMoveControls() {
+      if (viewMode === 'historic') return;
       if (!selectedSnakeId || !moveState) return;
+      updateIntentModeBadge();
 
       if (moveSubmitted) {
         const csData = controlledSnakeTurnData[selectedSnakeId];
@@ -1111,20 +1562,17 @@
       }
     }
 
+    // SELECTION = local inspection cursor only (the purple box). Moving it
+    // (candidate-cell click, arrows, WASD) updates the breakdown table +
+    // projected-territory overlay and nothing else: no server message, no
+    // staged-move write, no queue clear. Staging is a separate explicit
+    // action (Space / Stage button -> stageSelectedMove).
     function selectMove(direction) {
       if (moveSubmitted || !selectedSnakeId) return;
+      if (!moveState) return;
+
       userSelectedMove = direction;
       moveState.selectedMove = direction;
-
-      stagedMoves[selectedSnakeId] = {
-        move: direction,
-        committed: false,
-        color: myColor || '#4CAF50',
-      };
-
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'select-move', snakeId: selectedSnakeId, move: direction }));
-      }
 
       updateMoveControls();
       renderGameBoard();
@@ -1137,29 +1585,89 @@
       }
     }
 
-    function submitMove() {
+    function directionOffset(direction) {
+      switch (direction) {
+        case 'up':    return { dx: 0, dy: 1 };
+        case 'down':  return { dx: 0, dy: -1 };
+        case 'left':  return { dx: -1, dy: 0 };
+        case 'right': return { dx: 1, dy: 0 };
+      }
+      return null;
+    }
+
+    // STAGING = commit the current selection as this snake's manual override
+    // for the turn. No-op if nothing is selected. Optimistically paints the
+    // staged arrow in the user's color and tells the server (select-move),
+    // which activates Manual mode and drops any queue/waypoint. The actual
+    // commit happens only at the turn deadline (server safety timer).
+    function stageSelectedMove() {
       if (moveSubmitted || !selectedSnakeId) return;
-      const moveToSubmit = userSelectedMove || getBestBotMove();
-      if (!moveToSubmit) return;
+      const move = userSelectedMove;
+      if (!move) return;
+
+      stagedMoves[selectedSnakeId] = {
+        move,
+        committed: false,
+        color: myColor || '#4CAF50',
+      };
+
+      // Mirror the server's "manual override drops the plan" contract locally
+      // for immediate feedback; the server enforces the same via setUserSelection.
+      if ((premoveQueues[selectedSnakeId] || []).length > 0) {
+        setPremoveQueueForSnake(selectedSnakeId, []);
+      }
 
       if (ws && ws.readyState === WebSocket.OPEN) {
-        const submittedSnakeId = selectedSnakeId;
-        ws.send(JSON.stringify({ type: 'submit-move', snakeId: selectedSnakeId, move: moveToSubmit }));
-        moveSubmitted = true;
-        analyticsFrozen = true;
-        if (moveState) {
-          moveState.selectedMove = moveToSubmit;
-        }
-        const csData = controlledSnakeTurnData[selectedSnakeId];
-        if (csData) {
-          csData.moveCommitted = true;
-          csData.committedMove = moveToSubmit;
-        }
-        updateMoveControls();
-        renderGameBoard();
+        ws.send(JSON.stringify({ type: 'select-move', snakeId: selectedSnakeId, move }));
+      }
 
+      updateMoveControls();
+      renderGameBoard();
+    }
+
+    // ── Fatal-move confirmation dialog ──────────────────────────────────
+    // Shown when the server's consent gate blocked our certain-death move
+    // (manual / queue / waypoint step) and staged the bot's move instead.
+    // Enter or the Confirm button sends confirm-fatal-move (the server
+    // re-validates fatality and stages the move with consent); Escape,
+    // Cancel, or a click outside the dialog dismisses it — the bot fallback
+    // stays staged and commits at the deadline.
+    let fatalMovePrompt = null; // { snakeId, move, turn } | null
+
+    function showFatalMoveDialog(snakeId, move, turn) {
+      fatalMovePrompt = { snakeId, move, turn };
+      const text = document.getElementById('fatalMoveDialogText');
+      text.textContent =
+        `Moving ${String(move).toUpperCase()} is certain death for this snake. ` +
+        `Without confirmation, the bot's move commits instead at the deadline. ` +
+        `Press Enter to confirm the fatal move, or click outside to cancel.`;
+      document.getElementById('fatalMoveDialog').classList.add('active');
+    }
+
+    function hideFatalMoveDialog() {
+      fatalMovePrompt = null;
+      document.getElementById('fatalMoveDialog').classList.remove('active');
+    }
+
+    function confirmFatalMove() {
+      const prompt = fatalMovePrompt;
+      hideFatalMoveDialog();
+      if (!prompt) return;
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'confirm-fatal-move',
+          snakeId: prompt.snakeId,
+          move: prompt.move,
+        }));
       }
     }
+
+    document.getElementById('confirmFatalMoveBtn').addEventListener('click', confirmFatalMove);
+    document.getElementById('cancelFatalMoveBtn').addEventListener('click', hideFatalMoveDialog);
+    // Click on the dimmed backdrop (outside the dialog box) cancels.
+    document.getElementById('fatalMoveDialog').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) hideFatalMoveDialog();
+    });
 
     function getBestBotMove() {
       if (!moveState) return null;
@@ -1181,10 +1689,37 @@
         btn.innerHTML = 'Move Committed \u2713';
       } else if (userSelectedMove) {
         btn.disabled = false;
-        btn.innerHTML = `Submit ${userSelectedMove.toUpperCase()} <span class="shortcut">[Space]</span>`;
+        btn.innerHTML = `Stage ${userSelectedMove.toUpperCase()} <span class="shortcut">[Space]</span>`;
       } else {
-        btn.disabled = false;
-        btn.innerHTML = 'Submit Best Move <span class="shortcut">[Space]</span>';
+        btn.disabled = true;
+        btn.innerHTML = 'Stage Move <span class="shortcut">[Space]</span>';
+      }
+    }
+
+    function clampCommitBuffer(ms) {
+      return Math.min(5000, Math.max(100, Math.round(ms)));
+    }
+
+    function sendCommitBuffer(ms) {
+      const clamped = clampCommitBuffer(ms);
+      commitBufferMs = clamped;
+      localStorage.setItem('commitBufferMs', String(clamped));
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'set-commit-buffer', bufferMs: clamped }));
+      }
+    }
+
+    function applyStoredCommitBuffer() {
+      const stored = parseInt(localStorage.getItem('commitBufferMs'), 10);
+      if (Number.isFinite(stored) && clampCommitBuffer(stored) !== commitBufferMs && !finishedMode) {
+        sendCommitBuffer(stored);
+      }
+    }
+
+    function updateCommitBufferInput() {
+      const input = document.getElementById('commitBufferInput');
+      if (input && document.activeElement !== input) {
+        input.value = commitBufferMs;
       }
     }
 
@@ -1202,7 +1737,10 @@
           return;
         }
 
-        const remaining = Math.max(0, turnExpiryTime - Date.now());
+        // Count down to the actual commit moment: the server auto-commits the
+        // staged move at (game-server deadline − buffer), so 0.0s coincides
+        // with submission instead of stopping early at the raw deadline.
+        const remaining = Math.max(0, turnExpiryTime - effectiveCommitBufferMs - Date.now());
         const seconds = (remaining / 1000).toFixed(1);
         timerEl.textContent = `${seconds}s`;
 
@@ -1236,16 +1774,20 @@
     }
 
     function handleCanvasClick(event) {
+      // Read-only history mode: clicks switch the inspected snake perspective or
+      // toggle a territory highlight. Handle this BEFORE the live guard below,
+      // because a finished game loaded from logs has no live currentGameState —
+      // the historic handler reads historicDecisions instead. (Without this,
+      // board-body clicks silently did nothing in finished games.)
+      if (viewMode === 'historic') { handleHistoricCanvasClick(event); return; }
       if (!currentGameState) return;
 
       const canvas = document.getElementById('gameCanvas');
-      const rect = canvas.getBoundingClientRect();
       const board = currentGameState.board;
-      const cellSize = Math.min(rect.width / board.width, rect.height / board.height);
-      const clickX = event.clientX - rect.left;
-      const clickY = event.clientY - rect.top;
-      const boardX = Math.floor(clickX / cellSize);
-      const boardY = board.height - 1 - Math.floor(clickY / cellSize);
+      const cell = BoardRenderer.getClickedCell(canvas, board, event);
+      if (!cell) return;
+      const boardX = cell.x;
+      const boardY = cell.y;
 
       // Waypoint handling for the currently selected snake:
       // - Alt-click sets a green "goto" waypoint (auto-clears on arrival).
@@ -1325,6 +1867,64 @@
       return currentGameState.board.snakes.find(s => s.id === selectedSnakeId) || null;
     }
 
+    // Mirror of active-game-manager.getProjectedHead. The cell the snake's
+    // head will occupy after the move already committed this turn — or the
+    // current head if nothing's committed yet. Anchors every "next turn"
+    // affordance (Q-mode legal cells, addPremoveCellAt adjacency check,
+    // post-commit candidate cells) so they don't draw at the stale head.
+    function getProjectedHead(snakeId) {
+      if (!snakeId || !currentGameState) return null;
+      const snake = currentGameState.board.snakes.find(s => s.id === snakeId);
+      if (!snake) return null;
+      const head = snake.head || snake.body?.[0];
+      if (!head) return null;
+      const csData = controlledSnakeTurnData[snakeId];
+      if (csData?.moveCommitted && csData.committedMove) {
+        const off = directionOffset(csData.committedMove);
+        if (off) return { x: head.x + off.dx, y: head.y + off.dy };
+      }
+      return head;
+    }
+
+    // Build a synthetic moveState rooted at the projected head after a move
+    // has been committed this turn (Bug A fix: candidates were being drawn
+    // from the old head). The candidates represent the THREE forward options
+    // for next turn (the reverse of the committed move is excluded — going
+    // back would mean colliding with our own neck).
+    //
+    // These candidates carry no per-move evaluations (the bot hasn't planned
+    // next turn yet), so they render as plain cells. They're for Q-mode
+    // planning and click-to-extend only; they don't participate in submit.
+    function buildPostCommitCandidates(snakeId) {
+      const csData = controlledSnakeTurnData[snakeId];
+      if (!csData?.moveCommitted || !csData.committedMove) return null;
+      const proj = getProjectedHead(snakeId);
+      if (!proj || !currentGameState) return null;
+      const board = currentGameState.board;
+      const reverse = { up: 'down', down: 'up', left: 'right', right: 'left' };
+      const forbidden = reverse[csData.committedMove];
+
+      const moves = {};
+      for (const dir of ['up', 'down', 'left', 'right']) {
+        if (dir === forbidden) continue;
+        const off = directionOffset(dir);
+        const cell = { x: proj.x + off.dx, y: proj.y + off.dy };
+        const inBounds = cell.x >= 0 && cell.y >= 0 && cell.x < board.width && cell.y < board.height;
+        // Field names must match the BoardRenderer contract (`position` and
+        // `positionKey`) — the renderer uses these to place candidate cells,
+        // overlays, and tooltips.
+        moves[dir] = {
+          direction: dir,
+          position: cell,
+          positionKey: `${cell.x},${cell.y}`,
+          isSafe: inBounds,
+          isEvaluated: false,
+          displayScore: null,
+        };
+      }
+      return { head: proj, moves, selectedMove: null, postCommit: true };
+    }
+
     // Authoritative state lives on the server: the controlling user's client
     // sends `set-premove` whenever the queue mutates, the server stores it on
     // the snake, and broadcasts the new state to every subscriber. This
@@ -1341,6 +1941,10 @@
       }
       updatePremoveBanner();
       renderGameBoard();
+      // The server stages the queue head as soon as it receives the
+      // set-premove message (setPremoveQueue -> queue intent mode ->
+      // refreshStagedMove) and broadcasts it back via stagedMoves, so the
+      // client no longer needs to pre-stage anything locally.
     }
 
     function addPremoveCellAt(x, y) {
@@ -1348,15 +1952,26 @@
       const snake = getSelectedSnake();
       if (!snake) return;
       const board = currentGameState.board;
-      if (x < 0 || y < 0 || x >= board.width || y >= board.height) return;
+      if (x < 0 || y < 0 || x >= board.width || y >= board.height) {
+        flashRejectedCell(x, y, 'Off the board');
+        return;
+      }
 
-      const head = snake.head || snake.body[0];
+      // After a move is committed this turn the queue's "starting point" is
+      // the projected head (head + committed-move offset), not the now-stale
+      // current head. Without this, adjacency checks below reject clicks
+      // that ARE adjacent to where the snake will actually be next turn.
+      const head = getProjectedHead(selectedSnakeId) || snake.head || snake.body[0];
       const current = (premoveQueues[selectedSnakeId] || []).slice();
 
-      // Click on the head clears the path.
+      // Click on the (projected) head clears the path.
       if (x === head.x && y === head.y) {
-        if (current.length === 0) return;
+        if (current.length === 0) {
+          showBannerNotice('Path already empty');
+          return;
+        }
         setPremoveQueueForSnake(selectedSnakeId, []);
+        showBannerNotice('Path cleared');
         return;
       }
 
@@ -1364,22 +1979,69 @@
       const existingIdx = current.findIndex(c => c.x === x && c.y === y);
       if (existingIdx !== -1) {
         setPremoveQueueForSnake(selectedSnakeId, current.slice(0, existingIdx + 1));
+        showBannerNotice(`Truncated to ${existingIdx + 1} step${existingIdx === 0 ? '' : 's'}`);
         return;
       }
 
       // Otherwise the new cell must be orthogonally adjacent to the queue tail
-      // (or the head if the queue is empty). Non-adjacent clicks are ignored.
+      // (or the head if the queue is empty). Non-adjacent clicks flash red
+      // instead of silently being ignored — the user otherwise has no way of
+      // knowing planning is even on.
       const last = current.length > 0 ? current[current.length - 1] : head;
       const dx = x - last.x;
       const dy = y - last.y;
       const isAdjacent = (Math.abs(dx) === 1 && dy === 0) || (Math.abs(dy) === 1 && dx === 0);
-      if (!isAdjacent) return;
+      if (!isAdjacent) {
+        flashRejectedCell(x, y, 'Not adjacent to path');
+        return;
+      }
 
       current.push({ x, y });
       setPremoveQueueForSnake(selectedSnakeId, current);
       // NOTE: no auto-submit here. The queue is a plan for future turns; it
       // executes one cell per turn from the snake-turn-update handler. Trying
       // to submit on every click made it impossible to build multi-cell paths.
+    }
+
+    function flashRejectedCell(x, y, reason) {
+      if (reason) showBannerNotice(reason);
+      const canvas = document.getElementById('gameCanvas');
+      const board = currentGameState?.board;
+      if (!canvas || !board) return;
+      const displayWidth = canvas.clientWidth || canvas.width;
+      const displayHeight = canvas.clientHeight || canvas.height;
+      const cellSize = Math.min(displayWidth / board.width, displayHeight / board.height);
+      // Clamp off-board clicks to the nearest in-bounds cell so the flash
+      // still has somewhere to land.
+      const clampedX = Math.max(0, Math.min(board.width - 1, x));
+      const clampedY = Math.max(0, Math.min(board.height - 1, y));
+      const px = clampedX * cellSize;
+      const py = (board.height - 1 - clampedY) * cellSize;
+      const flash = document.createElement('div');
+      flash.className = 'premove-reject-flash';
+      flash.style.left = (canvas.offsetLeft + px) + 'px';
+      flash.style.top = (canvas.offsetTop + py) + 'px';
+      flash.style.width = cellSize + 'px';
+      flash.style.height = cellSize + 'px';
+      const wrapper = document.querySelector('.canvas-wrapper');
+      wrapper.appendChild(flash);
+      setTimeout(() => flash.remove(), 650);
+    }
+
+    function showBannerNotice(text) {
+      const el = document.getElementById('premoveBannerNotice');
+      if (!el) return;
+      // Force the banner visible so the notice is actually seen even when
+      // Q-mode is off and queue is empty.
+      const banner = document.getElementById('premoveBanner');
+      if (banner) banner.classList.add('active');
+      el.textContent = text;
+      if (premoveBannerNoticeTimer) clearTimeout(premoveBannerNoticeTimer);
+      premoveBannerNoticeTimer = setTimeout(() => {
+        el.textContent = '';
+        premoveBannerNoticeTimer = null;
+        updatePremoveBanner();
+      }, 1800);
     }
 
     function clearPremoveQueue() {
@@ -1392,6 +2054,10 @@
     function togglePremoveMode() {
       if (!selectedSnakeId) return;
       premoveMode = !premoveMode;
+      // Unambiguous cue (step 5): banner text changes AND the canvas border
+      // glows blue AND legal adjacent cells are outlined. All three light up
+      // together regardless of whether the queue is empty.
+      showBannerNotice(premoveMode ? 'Planning ON' : 'Planning off');
       updatePremoveBanner();
       renderGameBoard();
     }
@@ -1400,69 +2066,53 @@
       const banner = document.getElementById('premoveBanner');
       const label = document.getElementById('premoveBannerLabel');
       const clearBtn = document.getElementById('premoveClearBtn');
+      const wrapper = document.querySelector('.canvas-wrapper');
       if (!banner || !label || !clearBtn) return;
       const queue = (selectedSnakeId && premoveQueues[selectedSnakeId]) || [];
-      const visible = !!selectedSnakeId && (premoveMode || queue.length > 0);
+      const noticeEl = document.getElementById('premoveBannerNotice');
+      const hasNotice = !!(noticeEl && noticeEl.textContent);
+      const visible = !!selectedSnakeId && (premoveMode || queue.length > 0 || hasNotice);
       banner.classList.toggle('active', visible);
       // Q controls the click-to-plan input mode only. The queue itself always
       // auto-executes when non-empty, regardless of Q.
       const status = premoveMode ? 'Planning (click to extend)' : 'Premove';
       label.textContent = `${status} · ${queue.length} queued`;
       clearBtn.style.display = queue.length > 0 ? 'inline-block' : 'none';
+      // Canvas border highlight — the second visual signal for Q-mode, on
+      // independently of queue contents.
+      if (wrapper) wrapper.classList.toggle('premove-mode', !!selectedSnakeId && premoveMode);
     }
 
-    function tryConsumePremove() {
-      if (!selectedSnakeId) return;
-      // Premove auto-execution is always on whenever a queue exists. The Q
-      // toggle (premoveMode) only governs whether clicks plan new cells or
-      // act normally — it does not gate execution.
-      if (!moveState || moveSubmitted) return;
-      const snake = getSelectedSnake();
-      if (!snake) return;
 
-      const queue = (premoveQueues[selectedSnakeId] || []).slice();
-      if (queue.length === 0) return;
-
-      const head = snake.head || snake.body[0];
-
-      // Drain any queued cells that match the current head — these are
-      // premoves the engine already executed in prior turns. Dequeuing here
-      // (rather than at submit time) means a failed submit never silently
-      // drops a queued cell: if the snake didn't actually move where we
-      // asked, queue[0] won't equal head and we'll either re-submit (still
-      // adjacent) or clear (diverged).
-      let mutated = false;
-      while (queue.length > 0 && queue[0].x === head.x && queue[0].y === head.y) {
-        queue.shift();
-        mutated = true;
+    function drawPremoveLegalCells(canvas, snake, board, cellSize) {
+      // Anchor at the projected head so post-commit Q-mode highlights the
+      // cells the snake will actually be able to choose from next turn.
+      const head = getProjectedHead(snake.id) || snake.head || snake.body?.[0];
+      if (!head) return;
+      const ctx = canvas.getContext('2d');
+      const offsets = [
+        { dx:  1, dy:  0 },
+        { dx: -1, dy:  0 },
+        { dx:  0, dy:  1 },
+        { dx:  0, dy: -1 },
+      ];
+      ctx.save();
+      ctx.strokeStyle = 'rgba(33, 150, 243, 0.9)';
+      ctx.fillStyle   = 'rgba(33, 150, 243, 0.12)';
+      ctx.lineWidth = Math.max(1.5, cellSize * 0.06);
+      ctx.setLineDash([Math.max(3, cellSize * 0.16), Math.max(3, cellSize * 0.12)]);
+      for (const { dx, dy } of offsets) {
+        const cx = head.x + dx;
+        const cy = head.y + dy;
+        if (cx < 0 || cy < 0 || cx >= board.width || cy >= board.height) continue;
+        const px = cx * cellSize;
+        const py = (board.height - 1 - cy) * cellSize;
+        const pad = Math.max(1, cellSize * 0.06);
+        ctx.fillRect(px + pad, py + pad, cellSize - 2 * pad, cellSize - 2 * pad);
+        ctx.strokeRect(px + pad, py + pad, cellSize - 2 * pad, cellSize - 2 * pad);
       }
-
-      if (queue.length === 0) {
-        if (mutated) setPremoveQueueForSnake(selectedSnakeId, []);
-        return;
-      }
-
-      const next = queue[0];
-      const dx = next.x - head.x;
-      const dy = next.y - head.y;
-
-      let direction = null;
-      if (dx === 1 && dy === 0) direction = 'right';
-      else if (dx === -1 && dy === 0) direction = 'left';
-      else if (dx === 0 && dy === 1) direction = 'up';
-      else if (dx === 0 && dy === -1) direction = 'down';
-
-      if (!direction) {
-        // Diverged — queue[0] isn't orthogonally adjacent to the current
-        // head, so the plan is no longer reachable. Drop it.
-        setPremoveQueueForSnake(selectedSnakeId, []);
-        return;
-      }
-
-      if (mutated) setPremoveQueueForSnake(selectedSnakeId, queue);
-
-      selectMove(direction);
-      submitMove();
+      ctx.setLineDash([]);
+      ctx.restore();
     }
 
     // Draw a translucent filled square + thick border on the waypoint cell,
@@ -1497,7 +2147,10 @@
     function drawPremoveOverlay(canvas, snake, queue, board, cellSize, color) {
       if (!snake || !queue || queue.length === 0) return;
       const ctx = canvas.getContext('2d');
-      const head = snake.head || snake.body[0];
+      // Anchor the dashed path at the projected head so the line connects
+      // from where the snake will be next turn (not the stale current head)
+      // to queue[0]. Falls back to the current head for non-controlled snakes.
+      const head = getProjectedHead(snake.id) || snake.head || snake.body[0];
 
       const toPx = (cell) => ({
         x: cell.x * cellSize + cellSize / 2,
@@ -1567,6 +2220,11 @@
       updateReleaseAllButton();
     }
 
+    function submitAll() {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      ws.send(JSON.stringify({ type: 'commit-all-staged' }));
+    }
+
     function suicideAll() {
       if (!ws || ws.readyState !== WebSocket.OPEN) return;
       const password = window.prompt("Enter password to confirm SUICIDE ALL:");
@@ -1591,6 +2249,35 @@
     }
 
     document.addEventListener('keydown', (e) => {
+      // Let the buffer input (or any text/number field) receive keys normally.
+      const active = document.activeElement;
+      if (active && (active.tagName === 'INPUT' && active.type !== 'range' || active.tagName === 'TEXTAREA')) {
+        if (e.key === 'Escape' || e.key === 'Enter') active.blur();
+        return;
+      }
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === ' ') {
+        e.preventDefault();
+      }
+
+      // In read-only history mode, arrow keys go to whichever control the user
+      // interacted with last (browser "active element" principle): the candidate
+      // move selector after selecting a snake/candidate, otherwise the scrubber.
+      // All live-control keys stay inert so nothing gets staged/committed.
+      if (viewMode === 'historic') {
+        if (historicKeyFocus === 'candidates' && historicMoveState) {
+          if (e.key === 'Escape') { historicKeyFocus = 'scrubber'; return; }
+          const dir = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' }[e.key];
+          if (dir) {
+            if (historicMoveState.moves && historicMoveState.moves[dir]) historicSelectMove(dir);
+            return;
+          }
+          return;
+        }
+        if (e.key === 'ArrowLeft') scrubHistoric(-1);
+        else if (e.key === 'ArrowRight') scrubHistoric(1);
+        return;
+      }
+
       if (document.getElementById('confirmDialog').classList.contains('active')) {
         if (e.key === 'Enter') {
           e.preventDefault();
@@ -1599,6 +2286,26 @@
           e.preventDefault();
           document.getElementById('cancelTakeoverBtn').click();
         }
+        return;
+      }
+
+      if (document.getElementById('fatalMoveDialog').classList.contains('active')) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          confirmFatalMove();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          hideFatalMoveDialog();
+        }
+        return;
+      }
+
+      if (e.key === 'Enter') {
+        // Commit every staged move now (benign "commit now"). The confirm/
+        // takeover dialog branch above intercepts Enter and returns first, so
+        // this never fires while a dialog is open.
+        e.preventDefault();
+        submitAll();
         return;
       }
 
@@ -1622,6 +2329,7 @@
         // First Esc just turns off input mode (queue stays, persists on server).
         if (premoveMode) {
           premoveMode = false;
+          showBannerNotice('Planning off: Esc');
           updatePremoveBanner();
           renderGameBoard();
           return;
@@ -1661,9 +2369,823 @@
         case 'D':
           e.preventDefault(); selectMove('right'); break;
         case ' ':
-          e.preventDefault(); submitMove(); break;
+          e.preventDefault(); stageSelectedMove(); break;
       }
     });
+
+    // ── Turn scrubbing implementation ───────────────────────────────────────
+
+    // The set of snakes selectable/inspectable in history mode: everything with
+    // logged decisions (historyLoggedSnakeIds) UNIONED with the live controlled
+    // set — a currently-live snake may not yet appear in the games metadata
+    // until its logs land, and a since-dead snake only appears in the logged
+    // set. Live control gating (selectSnakeForControl etc.) intentionally keeps
+    // using controlledSnakeIds alone.
+    function historicSelectableIds() {
+      if (historyLoggedSnakeIds.size === 0) return controlledSnakeIds;
+      const union = new Set(historyLoggedSnakeIds);
+      for (const id of controlledSnakeIds) union.add(id);
+      return union;
+    }
+
+    // Lazily discover which snakes have logged decisions in this game (same
+    // /api/logs/games source enterFinishedMode uses). Fetched once, on first
+    // entry into history mode during a live game. On arrival, re-renders the
+    // current historic turn so since-dead teammates become clickable.
+    function ensureHistoryLoggedSnakeIds() {
+      if (historyLoggedFetch) return historyLoggedFetch;
+      historyLoggedFetch = fetch('/api/logs/games')
+        .then((r) => r.json())
+        .then((games) => {
+          const group = (games || []).find((g) => g.game_id === gameId);
+          if (!group) return;
+          historyLoggedSnakeIds = new Set((group.snakes || []).map((s) => s.snake_id));
+          // Refresh the panel/board so newly-selectable snakes get their
+          // clickable affordance, and warm their decision caches.
+          if (viewMode === 'historic' && !finishedMode && historicDecisions) {
+            prefetchHistoricTeam();
+            renderHistoricAtTurn(historicTurnNumber);
+          }
+        })
+        .catch((err) => {
+          console.error('Failed to load logged-snake list:', err);
+          historyLoggedFetch = null; // allow a retry on the next history entry
+        });
+      return historyLoggedFetch;
+    }
+
+    // Pick which snake's logged decisions to render in history mode. Prefer the
+    // snake already being inspected, else the currently selected snake, else
+    // the first selectable one. These are the bot-logged snakes, so /api/logs
+    // has their per-turn evaluations.
+    function getHistoricSnakeId() {
+      const selectable = historicSelectableIds();
+      if (historicSnakeId && selectable.has(historicSnakeId)) {
+        return historicSnakeId;
+      }
+      if (selectedSnakeId && selectable.has(selectedSnakeId)) {
+        return selectedSnakeId;
+      }
+      const first = selectable.values().next();
+      return first.done ? null : first.value;
+    }
+
+    // Load one snake's logged decisions, coalescing concurrent/duplicate
+    // requests onto a single in-flight promise and caching the (~2MB) result.
+    // Historic logs are immutable except for the growing tail, so a cached entry
+    // is REUSED unless the caller needs a turn beyond what we've already fetched
+    // (live games only). This is what keeps snake selection instant: no whole-
+    // cache nuke on every live tick, and no duplicate 2MB fetches per click.
+    function loadSnakeDecisions(snakeId, targetTurn) {
+      const entry = historicCache.get(snakeId);
+      if (entry) {
+        const needsNewerTail =
+          !finishedMode &&
+          targetTurn != null &&
+          targetTurn > entry.maxTurn &&
+          entry.maxTurn < liveMaxTurn &&
+          !snakeLogIsFinal(snakeId, entry);
+        if (!needsNewerTail) return Promise.resolve(entry);
+      }
+      let p = historicInflight.get(snakeId);
+      if (!p) {
+        p = fetchHistoricDecisions(snakeId)
+          .then((e) => { historicCache.set(snakeId, e); return e; })
+          .finally(() => { historicInflight.delete(snakeId); });
+        historicInflight.set(snakeId, p);
+      }
+      return p;
+    }
+
+    // A snake's log is FINAL (will never grow) once the game is over or the
+    // snake is dead. Without this, scrubbing past a dead snake's death turn in
+    // a live game re-fetches its ~2MB log on every tick forever, because the
+    // "growing tail" condition (targetTurn > maxTurn < liveMaxTurn) stays true.
+    function snakeLogIsFinal(snakeId, entry) {
+      if (entry.complete) return true;
+      if (finishedMode || gameEnded) { entry.complete = true; return true; }
+      // Dead: the live board has moved past the log's last turn and the snake
+      // is no longer on it.
+      if (currentGameState && currentGameState.board &&
+          (currentGameState.turn ?? 0) > entry.maxTurn &&
+          !currentGameState.board.snakes.some((s) => s.id === snakeId)) {
+        entry.complete = true;
+        return true;
+      }
+      return false;
+    }
+
+    async function ensureHistoricDecisions(targetTurn) {
+      const snakeId = getHistoricSnakeId();
+      if (!snakeId) return false;
+      let entry;
+      try {
+        entry = await loadSnakeDecisions(snakeId, targetTurn);
+      } catch (err) {
+        console.error('Failed to load historic turns:', err);
+        return false;
+      }
+      historicDecisions = entry.decisions;
+      historicTurnToIndex = entry.turnToIndex;
+      // Warm the rest of the team in the background. Coalesced + cached, so this
+      // is a cheap no-op once every snake is loaded.
+      prefetchHistoricTeam();
+      return historicDecisions.length > 0;
+    }
+
+    // Fetch one snake's logged decisions and build a turn→index map. Shared by
+    // the on-demand loader and the background prefetcher.
+    async function fetchHistoricDecisions(snakeId) {
+      // Snake ids contain '#', which must be encoded or the suffix is read as a
+      // URL fragment and the wrong (or no) snake's logs come back.
+      const resp = await fetch(
+        `/api/logs?game_id=${encodeURIComponent(gameId)}&snake_id=${encodeURIComponent(snakeId)}`
+      );
+      const data = await resp.json();
+      const decisions = (data && data.decisions) || [];
+      const turnToIndex = {};
+      let maxTurn = 0;
+      // Key by game_state.turn so the slider aligns with the live "Turn:"
+      // header (the decision-log `turn` column is offset by one).
+      decisions.forEach((d, i) => {
+        const t = d.game_state?.turn ?? d.turn;
+        turnToIndex[t] = i;
+        if (t > maxTurn) maxTurn = t;
+        // Feed the roster registry so since-dead snakes (ours and enemies)
+        // stay listed with their final length.
+        recordSnakesSeen(d.game_state);
+      });
+      return { decisions, turnToIndex, maxTurn };
+    }
+
+    // Warm the cache for our other controlled snakes in the background so that
+    // switching perspective (list click or board click) is instant instead of
+    // paying a network round-trip per selection.
+    function prefetchHistoricTeam() {
+      for (const sid of historicSelectableIds()) {
+        if (historicCache.has(sid) || historicInflight.has(sid)) continue;
+        // When a teammate's log lands while we're viewing history, re-render:
+        // it may extend the board coverage past the inspected snake's death.
+        loadSnakeDecisions(sid, null)
+          .then(() => {
+            if (viewMode === 'historic' && !isScrubbing) {
+              renderHistoricAtTurn(historicTurnNumber);
+            }
+          })
+          .catch(() => {});
+      }
+    }
+
+    // Switch the inspected snake perspective while scrubbing. Loads that snake's
+    // logged decisions (only controlled/bot-logged snakes have logs) and re-renders
+    // the same turn so the user keeps their place on the slider.
+    async function switchHistoricSnake(snakeId) {
+      if (!snakeId) return;
+      // Selecting a snake hands the arrow keys to the candidate selector.
+      historicKeyFocus = 'candidates';
+      const sliderEl = document.getElementById('playTurnSlider');
+      if (sliderEl && document.activeElement === sliderEl) sliderEl.blur();
+      if (snakeId === getHistoricSnakeId()) return;
+      historicSnakeId = snakeId;
+      const turnToShow = historicTurnNumber;
+      const ok = await ensureHistoricDecisions(turnToShow);
+      if (!ok) {
+        showBannerNotice('No history recorded for that snake');
+        return;
+      }
+      renderHistoricAtTurn(turnToShow);
+      updateTurnControls();
+    }
+
+    // Index of the last decision at or before turnNumber within one cache
+    // entry, or -1 when the entry has nothing at/before that turn.
+    function indexForTurnInEntry(entry, turnNumber) {
+      if (!entry || !entry.decisions || entry.decisions.length === 0) return -1;
+      if (entry.turnToIndex[turnNumber] != null) return entry.turnToIndex[turnNumber];
+      let best = -1;
+      for (let i = 0; i < entry.decisions.length; i++) {
+        const t = entry.decisions[i].game_state?.turn ?? entry.decisions[i].turn;
+        if (t <= turnNumber) best = i; else break;
+      }
+      return best;
+    }
+
+    // Map a desired turn number to the nearest logged decision index at or
+    // before it (logs may skip a turn). Returns -1 if there is nothing logged.
+    function decisionIndexForTurn(turnNumber) {
+      if (!historicDecisions || historicDecisions.length === 0) return -1;
+      if (historicTurnToIndex[turnNumber] != null) return historicTurnToIndex[turnNumber];
+      let best = -1;
+      for (let i = 0; i < historicDecisions.length; i++) {
+        const t = historicDecisions[i].game_state?.turn ?? historicDecisions[i].turn;
+        if (t <= turnNumber) best = i; else break;
+      }
+      return best === -1 ? 0 : best;
+    }
+
+    // Board state for a scrubbed turn can come from ANY cached team log, not
+    // just the inspected snake's — so the inspected snake dying never freezes
+    // the board. Returns the row with the highest game_state.turn <= target
+    // across all cached selectable snakes (plus the prior row in the same log,
+    // for death-marker detection), or null when nothing covers it.
+    function resolveBoardRow(turnNumber) {
+      let best = null;
+      for (const sid of historicSelectableIds()) {
+        const entry = historicCache.get(sid);
+        if (!entry) continue;
+        const i = indexForTurnInEntry(entry, turnNumber);
+        if (i < 0) continue;
+        const row = entry.decisions[i];
+        const t = row.game_state?.turn ?? row.turn;
+        if (!best || t > best.turn) {
+          best = { row, prevRow: i > 0 ? entry.decisions[i - 1] : null, turn: t };
+        }
+      }
+      return best;
+    }
+
+    // Strip every live-only affordance from the page. Used for finished games,
+    // where there is nothing to control and no live turn to follow.
+    function hideLiveOnlyChrome() {
+      ['submitAllBtn', 'suicideBtn', 'releaseAllBtn', 'timerDisplay', 'pingDisplay', 'commitBufferLabel', 'gameOverBanner']
+        .forEach((id) => {
+          const el = document.getElementById(id);
+          if (el) el.style.display = 'none';
+        });
+      const legend = document.querySelector('.kbd-legend');
+      if (legend) legend.style.display = 'none';
+      const users = document.getElementById('connectedUsers');
+      if (users) users.style.display = 'none';
+      const firstMove = document.getElementById('firstMoveIndicator');
+      if (firstMove) firstMove.style.display = 'none';
+    }
+
+    // Turn the page into a pure read-only replay for a game that is not live.
+    // Discovers our team's logged snakes from /api/logs/games, loads the default
+    // snake's decisions, and opens on the final logged turn. Perspective
+    // switching, turn scrubbing and the heuristic breakdown all work through the
+    // same historic code path the live view uses when scrubbed back.
+    async function enterFinishedMode() {
+      if (finishedMode) return;
+      finishedMode = true;
+      viewMode = 'historic';
+      hideLiveOnlyChrome();
+
+      const overlay = document.getElementById('waitingOverlay');
+
+      let group = null;
+      try {
+        const resp = await fetch('/api/logs/games');
+        const games = await resp.json();
+        group = (games || []).find((g) => g.game_id === gameId) || null;
+      } catch (err) {
+        console.error('Failed to load game list for finished game:', err);
+      }
+
+      if (!group) {
+        if (overlay) {
+          overlay.innerHTML =
+            '<h2>Game not found</h2><p>This game is not live and has no recorded history.</p>';
+        }
+        return;
+      }
+
+      controlledSnakeIds = new Set((group.snakes || []).map((s) => s.snake_id));
+      historicSnakeId = group.default_snake_id;
+
+      const ok = await ensureHistoricDecisions();
+      if (!ok) {
+        if (overlay) {
+          overlay.innerHTML =
+            '<h2>Game not found</h2><p>No decision logs were recorded for this game.</p>';
+        }
+        return;
+      }
+
+      // The last logged turn is the effective "live edge" for scrubbing.
+      liveMaxTurn = 0;
+      for (const d of historicDecisions) {
+        const t = d.game_state?.turn ?? d.turn;
+        if (t > liveMaxTurn) liveMaxTurn = t;
+      }
+
+      document.getElementById('pageTitle').textContent = `Game ${gameId} (finished)`;
+      showGameUI();
+      enterHistoric(liveMaxTurn);
+    }
+
+    async function enterHistoric(turnNumber) {
+      // Switch mode before awaiting the fetch so any live update arriving during
+      // the load doesn't repaint/advance the board out from under the user.
+      viewMode = 'historic';
+      // Kick off (once) the logged-snake discovery so since-dead teammates
+      // become selectable; fire-and-forget, it re-renders when it lands.
+      if (!finishedMode) ensureHistoryLoggedSnakeIds();
+      // The selected turn lives in the slider (value) domain and is kept exactly
+      // as the user picked it — we never echo a snapped data turn back to it.
+      historicTurnNumber = Math.max(0, Math.min(liveMaxTurn, turnNumber));
+      // Latest-wins: stamp this load so a stale async resolution (an earlier,
+      // slower scrub) can detect it has been superseded and bail out.
+      const token = ++scrubLoadToken;
+      const ok = await ensureHistoricDecisions(historicTurnNumber);
+      if (token !== scrubLoadToken) return; // a newer scrub/return-to-live won
+      if (!ok) {
+        showBannerNotice('No history recorded yet');
+        returnToLive();
+        return;
+      }
+      // Turn off live-only input affordances while inspecting history.
+      premoveMode = false;
+      updatePremoveBanner();
+      if (turnTimerInterval) { clearInterval(turnTimerInterval); turnTimerInterval = null; }
+      const timerEl = document.getElementById('timerDisplay');
+      if (timerEl) { timerEl.className = 'timer-display idle'; timerEl.textContent = 'History'; }
+      renderHistoricAtTurn(historicTurnNumber);
+      updateTurnControls();
+    }
+
+    function returnToLive() {
+      // A finished game has no live edge; snap to the last logged turn instead
+      // of blanking the board on a non-existent live state.
+      if (finishedMode) {
+        enterHistoric(liveMaxTurn);
+        return;
+      }
+      viewMode = 'live';
+      // Supersede any in-flight historic load so it can't repaint over live.
+      scrubLoadToken++;
+      historicSnakeId = null;
+      historicMoveState = null;
+      document.getElementById('boardOverlay').innerHTML = '';
+      restoreLiveSelectionPanel();
+      if (currentGameState) {
+        document.getElementById('currentTurn').textContent = currentGameState.turn;
+        document.getElementById('firstMoveIndicator').style.display =
+          (currentGameState.turn === 0) ? 'block' : 'none';
+        renderGameBoard();
+        renderSnakeInfo();
+        if (selectedSnakeId) updateMoveControls();
+        startTurnTimer();
+      }
+      updateTurnControls();
+    }
+
+    // The single coalesced commit path. Every entry point (slider release,
+    // keyboard arrows, nav buttons) funnels through here so live/history mode is
+    // decided once, against the stable liveMaxTurn reference.
+    function commitScrub(turnNumber) {
+      // Any turn navigation (slider, nav buttons, keyboard scrub) hands the
+      // arrow keys back to the scrubber.
+      historicKeyFocus = 'scrubber';
+      const target = Math.max(0, Math.min(liveMaxTurn, turnNumber));
+      // Finished games have no live edge: every position is historic, including
+      // the last turn.
+      if (!finishedMode && target >= liveMaxTurn) {
+        if (viewMode === 'live') { updateTurnControls(); return; }
+        returnToLive();
+      } else {
+        enterHistoric(target);
+      }
+    }
+
+    function scrubHistoric(delta) {
+      const base = (viewMode === 'historic') ? historicTurnNumber : liveMaxTurn;
+      commitScrub(base + delta);
+    }
+
+    // Cheap preview while dragging: update only the counter + button states from
+    // the dragged value. No fetch, no reflow, no slider writes — the pointer owns
+    // the thumb until release.
+    function previewScrub(turnNumber) {
+      updateNavButtons(Math.max(0, Math.min(liveMaxTurn, turnNumber)));
+    }
+
+    function navGoToStart() { commitScrub(0); }
+    function navPrevTurn() {
+      const base = (viewMode === 'historic') ? historicTurnNumber : liveMaxTurn;
+      commitScrub(base - 1);
+    }
+    function navNextTurn() {
+      const base = (viewMode === 'historic') ? historicTurnNumber : liveMaxTurn;
+      commitScrub(base + 1);
+    }
+    function navGoToEnd() {
+      if (finishedMode) { commitScrub(liveMaxTurn); return; }
+      returnToLive();
+    }
+
+    // Sync the counter text and per-button enabled state for the given displayed
+    // turn. Computed purely from displayTurn vs liveMaxTurn so it works for both
+    // committed states and the live drag preview.
+    function updateNavButtons(displayTurn) {
+      const counter = document.getElementById('turnNavCounter');
+      const startBtn = document.getElementById('navStartBtn');
+      const prevBtn = document.getElementById('navPrevBtn');
+      const nextBtn = document.getElementById('navNextBtn');
+      const endBtn = document.getElementById('navEndBtn');
+      if (!counter || !startBtn || !prevBtn || !nextBtn || !endBtn) return;
+
+      counter.textContent = `${displayTurn} of ${liveMaxTurn}`;
+      const atStart = displayTurn <= 0;
+      const atLive = displayTurn >= liveMaxTurn;
+      startBtn.disabled = atStart;
+      prevBtn.disabled = atStart;
+      nextBtn.disabled = atLive;
+      endBtn.disabled = atLive;
+    }
+
+    function updateTurnControls() {
+      const controls = document.getElementById('turnControls');
+      const slider = document.getElementById('playTurnSlider');
+      const badge = document.getElementById('viewModeBadge');
+      const info = document.getElementById('turnControlsInfo');
+      if (!controls || !slider || !badge || !info) return;
+
+      controls.style.display = liveMaxTurn > 0 ? 'block' : 'none';
+
+      // While the user is touching the slider, they are the sole writer of its
+      // value/geometry and of the counter — defer every programmatic write so a
+      // live update can't yank the thumb or rescale the track mid-drag.
+      if (isScrubbing) return;
+
+      // Idle: safe to apply deferred geometry and re-sync the thumb to state.
+      slider.max = liveMaxTurn;
+      const displayTurn = (viewMode === 'historic') ? historicTurnNumber : liveMaxTurn;
+      slider.value = displayTurn;
+
+      if (viewMode === 'historic') {
+        if (finishedMode) {
+          badge.textContent = '\u25A0 FINISHED';
+          badge.className = 'view-mode-badge historic';
+          info.textContent = `Viewing turn ${historicTurnNumber} of ${liveMaxTurn} (finished game) \u00B7 click a snake to inspect it`;
+        } else {
+          badge.textContent = '\u23F8 HISTORY';
+          badge.className = 'view-mode-badge historic';
+          info.textContent = `Viewing turn ${historicTurnNumber} (read-only) \u00B7 live is at turn ${liveMaxTurn} \u00B7 click a snake to inspect it`;
+        }
+      } else {
+        badge.textContent = '\u25CF LIVE';
+        badge.className = 'view-mode-badge live';
+        info.textContent = 'Following the live game \u00B7 drag the slider to review earlier turns';
+      }
+      updateNavButtons(displayTurn);
+    }
+
+    // Mirrors the Game History viewer's per-turn render: same BoardRenderer
+    // entry points, same decision-log data shape, just with interactivity off.
+    // The BOARD is resolved from the best cached team log covering the turn
+    // (so the inspected snake dying never freezes scrubbing); the inspected
+    // snake's own log drives only its evaluation breakdown, which degrades to
+    // an explicit "no data" panel for turns after its death.
+    function renderHistoricAtTurn(turnNumber, opts) {
+      // During a continuous drag we render the board (canvas + overlay) every
+      // frame but skip the heavier side-panel DOM rebuild; the full render runs
+      // once on commit/release.
+      const lightweight = !!(opts && opts.lightweight);
+      const idx = decisionIndexForTurn(turnNumber);
+      const ownRow = (historicDecisions && idx >= 0) ? historicDecisions[idx] : null;
+      const ownTurn = ownRow ? (ownRow.game_state?.turn ?? ownRow.turn) : -1;
+      const best = resolveBoardRow(turnNumber);
+      let boardRow = ownRow;
+      let prevRow = (historicDecisions && idx > 0) ? historicDecisions[idx - 1] : null;
+      if (best && (!ownRow || best.turn > ownTurn)) {
+        boardRow = best.row;
+        prevRow = best.prevRow;
+      }
+      if (!boardRow || !boardRow.game_state) return;
+      historicIndex = idx >= 0 ? idx : 0;
+      // The rendered (data) turn may differ from the user-selected turn when logs
+      // are sparse. Keep historicTurnNumber (the slider/value domain) untouched;
+      // only the "Turn:" header reflects the actual data turn on screen.
+      const renderedTurn = boardRow.game_state?.turn ?? boardRow.turn;
+      // The inspected snake's evaluation applies only when its own log covers
+      // the rendered turn (i.e. it was still alive and logging there).
+      const evalRow = (ownRow && ownTurn === renderedTurn) ? ownRow : null;
+
+      if (evalRow) {
+        const head = evalRow.game_state.you?.head
+          || evalRow.game_state.board.snakes.find(s => s.id === evalRow.snake_id)?.body[0];
+        historicMoveState = BoardRenderer.processMoveEvaluations(
+          evalRow.move_evaluations, evalRow.safe_moves, head, evalRow.bot_recommendation
+        );
+        historicMoveState.selectedMove = null;
+        historicMoveState.selectedSnake = null;
+      } else {
+        historicMoveState = null;
+      }
+      historicRenderCtx = { boardRow, prevRow, ownRow: evalRow };
+
+      document.getElementById('currentTurn').textContent = renderedTurn;
+      document.getElementById('firstMoveIndicator').style.display = 'none';
+
+      renderHistoricBoard();
+      // The snake list (alive/dead roster, lengths) must track the displayed
+      // turn even DURING a drag — a snake's death has to grey it out live as
+      // the user scrubs, not only on release. It's cheap enough to rebuild
+      // whenever the rendered data turn changes; only the heavier evaluation
+      // side panel waits for commit/release.
+      if (!lightweight || snakeInfoRenderedTurn !== renderedTurn) {
+        snakeInfoRenderedTurn = renderedTurn;
+        BoardRenderer.renderSnakeInfo(
+          document.getElementById('snakeInfoList'), boardRow.game_state, getHistoricSnakeId(), null,
+          { groupByTeam: true, onSelectSnake: switchHistoricSnake,
+            selectableSnakeIds: historicSelectableIds(),
+            deadSnakes: deadSnakesFor(boardRow.game_state) }
+        );
+      }
+      if (lightweight) return;
+      if (evalRow) showHistoricSelectionPanel(evalRow);
+      else showHistoricNoDataPanel();
+    }
+
+    // ── Live drag rendering ──────────────────────────────────────────────────
+    // Paint the historic board for the dragged turn on every animation frame,
+    // straight from the in-memory cache (no fetch, no slider writes). Coalesced
+    // behind a single rAF so many input events collapse to one render per frame.
+    function schedulePreviewRender(turnNumber) {
+      scrubRenderTurn = Math.max(0, Math.min(liveMaxTurn, turnNumber));
+      if (scrubRenderPending) return;
+      scrubRenderPending = true;
+      requestAnimationFrame(renderPreviewFrame);
+    }
+
+    function renderPreviewFrame() {
+      scrubRenderPending = false;
+      if (!isScrubbing) return;
+      const target = scrubRenderTurn;
+      // At/over the live edge there is nothing historic to show — let the commit
+      // path decide between live and history on release.
+      if (target >= liveMaxTurn) return;
+      // Render only from data already in memory. If the inspected snake's logs
+      // aren't loaded yet, kick a (deduped) load and repaint once it lands.
+      if (!historicDecisions || historicDecisions.length === 0) {
+        ensureHistoricDecisions().then((ok) => {
+          if (ok && isScrubbing) schedulePreviewRender(scrubRenderTurn);
+        });
+        return;
+      }
+      // Suppress live repaints while previewing so an incoming live turn can't
+      // overwrite the frame the user is scrubbing to.
+      viewMode = 'historic';
+      renderHistoricAtTurn(target, { lightweight: true });
+    }
+
+    // Warm the inspected snake's logs the instant the pointer lands so the first
+    // drag frame can render without waiting on the network.
+    function primeHistoricForScrub() {
+      if (historicDecisions && historicDecisions.length > 0) return;
+      ensureHistoricDecisions().then((ok) => {
+        if (ok && isScrubbing) schedulePreviewRender(scrubRenderTurn);
+      });
+    }
+
+    // Mirror of the Game History viewer's buildOurDeaths: our own snake's death
+    // markers render only on the final logged turn — the row whose `server_move`
+    // was back-filled from the next turn's lastMoves (the snake stepped, then was
+    // gone). Solid = head + server_move; ghost = head + submitted_move, only when
+    // it differs. Rows without server_move (mid-game / older logs) → no markers.
+    function buildHistoricOurDeaths(turn) {
+      if (historicIndex !== historicDecisions.length - 1) return [];
+      const serverMove = turn.server_move;
+      if (!serverMove) return [];
+      const snakes = turn.game_state?.board?.snakes || [];
+      const ourSnake = snakes.find(s => s.id === turn.snake_id) || turn.game_state?.you;
+      const head = ourSnake?.body?.[0] || ourSnake?.head;
+      if (!head) return [];
+      const actualHead = applyMoveToCell(head, serverMove);
+      const submittedMove = turn.submitted_move;
+      const intendedHead =
+        submittedMove && submittedMove !== serverMove
+          ? applyMoveToCell(head, submittedMove)
+          : null;
+      return [{
+        id: turn.snake_id,
+        lastHead: head,
+        intendedHead,
+        actualHead,
+        color: ourSnake?.customizations?.color || ourSnake?.color || '#888888',
+        emoji: ourSnake?.emoji || '\u{1F40D}',
+      }];
+    }
+
+    function renderHistoricBoard() {
+      const ctx = historicRenderCtx;
+      if (!ctx || !ctx.boardRow || !ctx.boardRow.game_state) return;
+      const canvas = document.getElementById('gameCanvas');
+      const turn = ctx.boardRow;
+      const own = ctx.ownRow; // inspected snake's decision, null after its death
+      // The prior logged turn's board (from the SAME log the board row came
+      // from) lets the renderer detect snakes that vanished this turn;
+      // lastMoves (on game_state) then marks their true death cell.
+      const prevTurn = ctx.prevRow;
+      // The primary arrow shows the move that was actually SUBMITTED to the
+      // game server for this turn (ground truth). Rows without submitted_move
+      // (older logs / unresolved turns) fall back to the bot recommendation,
+      // rendered in a visually distinct "recommendation only" style. When the
+      // submitted move differs from the bot's recommendation, the bot's pick
+      // is drawn as a thin secondary hint so overrides are visible. All of
+      // this applies only while the inspected snake has data for the turn.
+      const submitted = own ? (own.submitted_move || null) : null;
+      const botRec = own ? (own.bot_recommendation || null) : null;
+      BoardRenderer.renderBoard(canvas, turn.game_state, historicMoveState, {
+        snakeId: own ? own.snake_id : getHistoricSnakeId(),
+        chosenMove: submitted || botRec,
+        chosenMoveStyle: submitted ? 'submitted' : 'recommendation-only',
+        secondaryMove: submitted && botRec && submitted !== botRec ? botRec : null,
+        showChosenArrow: !!own,
+        previousBoard: prevTurn?.game_state?.board || null,
+        ourDeaths: own ? buildHistoricOurDeaths(own) : [],
+        lastMoves: turn.game_state?.lastMoves || null,
+        fatalConsented: !!(own && own.fatal_consent),
+        interactive: false,
+      });
+      const overlayEl = document.getElementById('boardOverlay');
+      if (historicMoveState) {
+        BoardRenderer.createBoardOverlay(
+          overlayEl, canvas, turn.game_state.board,
+          historicMoveState, historicSelectMove
+        );
+      } else {
+        overlayEl.innerHTML = '';
+      }
+    }
+
+    // Read-only candidate selection: clicking a candidate cell / move button
+    // shows that move's heuristic breakdown, exactly like the history viewer.
+    function historicSelectMove(direction) {
+      if (!historicMoveState) return;
+      historicKeyFocus = 'candidates';
+      historicMoveState.selectedMove = direction;
+      BoardRenderer.renderMoveButtons(
+        document.getElementById('moveButtons'), historicMoveState, historicSelectMove
+      );
+      renderHistoricBoard();
+      const move = historicMoveState.moves[direction];
+      if (move) {
+        BoardRenderer.updateStatsTable(
+          document.getElementById('statsTableBody'), move, historicMoveState
+        );
+      }
+    }
+
+    function handleHistoricCanvasClick(event) {
+      const ctx = historicRenderCtx;
+      if (!ctx || !ctx.boardRow || !ctx.boardRow.game_state) return;
+      const canvas = document.getElementById('gameCanvas');
+      const board = ctx.boardRow.game_state.board;
+      const cell = BoardRenderer.getClickedCell(canvas, board, event);
+      if (!cell) return;
+
+      // Clicking a *different* controlled snake's body switches the inspected
+      // perspective (loads its logged decisions for this same turn). Only
+      // controlled (bot-logged) snakes have decision logs to inspect.
+      const currentView = getHistoricSnakeId();
+      const selectable = historicSelectableIds();
+      const target = BoardRenderer.findSnakeAtCell(board, cell,
+        s => selectable.has(s.id) && s.id !== currentView);
+      if (target) {
+        switchHistoricSnake(target.id);
+        return;
+      }
+
+      // Territory highlighting needs the inspected snake's evaluation data,
+      // which doesn't exist for turns after its death.
+      if (!historicMoveState) return;
+
+      // Otherwise, toggle a Voronoi territory highlight for the clicked cell.
+      const clickedSnake = BoardRenderer.findTerritoryOwnerAtCell(historicMoveState.territoryCells, cell);
+      if (clickedSnake) {
+        historicMoveState.selectedSnake =
+          (historicMoveState.selectedSnake === clickedSnake) ? null : clickedSnake;
+        renderHistoricBoard();
+      } else if (historicMoveState.selectedSnake) {
+        historicMoveState.selectedSnake = null;
+        renderHistoricBoard();
+      }
+    }
+
+    // In history mode the selection panel becomes a read-only breakdown viewer:
+    // the snake-perspective name is shown, control buttons (Stage/Hold) and the
+    // intent badge are hidden, and the move buttons + stats reflect the logged
+    // turn. restoreLiveSelectionPanel() undoes this on return to live.
+    function showHistoricSelectionPanel(turn) {
+      document.getElementById('noSelectionMsg').style.display = 'none';
+      document.getElementById('selectionUI').style.display = 'block';
+      document.getElementById('selectedSnakePanel').classList.remove('active');
+
+      const snake = turn.game_state.board.snakes.find(s => s.id === turn.snake_id);
+      const name = snake?.name || turn.snake_name || turn.snake_id;
+      const emoji = snake?.emoji || '\u{1F40D}';
+      const nameEl = document.getElementById('selectedSnakeName');
+      nameEl.textContent = `${emoji} ${name} (history)`;
+      // Confirmed-fatal note: this turn's submitted move went through the
+      // fatal-move confirmation dialog (deliberate death, not a bot mistake).
+      let fatalNote = document.getElementById('fatalConsentNote');
+      if (turn.fatal_consent) {
+        if (!fatalNote) {
+          fatalNote = document.createElement('span');
+          fatalNote.id = 'fatalConsentNote';
+          fatalNote.style.cssText = 'color: #ff1744; font-size: 12px; font-weight: 700; border: 1px solid #ff1744; border-radius: 10px; padding: 2px 8px; margin-left: 8px;';
+          fatalNote.textContent = '\u26A0 FATAL MOVE CONFIRMED BY USER';
+          nameEl.after(fatalNote);
+        }
+        fatalNote.style.display = '';
+      } else if (fatalNote) {
+        fatalNote.style.display = 'none';
+      }
+
+      const badge = document.getElementById('intentModeBadge');
+      if (badge) badge.style.display = 'none';
+      const submitSection = document.querySelector('#moveControls .submit-section');
+      if (submitSection) submitSection.style.display = 'none';
+
+      BoardRenderer.renderMoveButtons(
+        document.getElementById('moveButtons'), historicMoveState, historicSelectMove
+      );
+      BoardRenderer.updateStatsTable(
+        document.getElementById('statsTableBody'), null, historicMoveState
+      );
+    }
+
+    // Shown instead of the breakdown when the viewed turn is after the
+    // inspected snake's death: the board keeps rendering (from other team
+    // logs), but there is no decision data for this snake at this turn.
+    function showHistoricNoDataPanel() {
+      document.getElementById('noSelectionMsg').style.display = 'none';
+      document.getElementById('selectionUI').style.display = 'block';
+      document.getElementById('selectedSnakePanel').classList.remove('active');
+
+      const rec = snakeLastSeen.get(getHistoricSnakeId());
+      const name = rec?.snake?.name || getHistoricSnakeId() || 'Snake';
+      const emoji = rec?.snake?.emoji || '\u{1F40D}';
+      document.getElementById('selectedSnakeName').textContent = `${emoji} ${name} (history)`;
+
+      const fatalNote = document.getElementById('fatalConsentNote');
+      if (fatalNote) fatalNote.style.display = 'none';
+      const badge = document.getElementById('intentModeBadge');
+      if (badge) badge.style.display = 'none';
+      const submitSection = document.querySelector('#moveControls .submit-section');
+      if (submitSection) submitSection.style.display = 'none';
+
+      document.getElementById('moveButtons').innerHTML =
+        '<div style="grid-column: 1 / -1; color: #888; text-align: center; padding: 12px;">' +
+        'No decision data for this snake at this turn \u2014 it is dead.</div>';
+      document.getElementById('statsTableBody').innerHTML =
+        '<tr><td colspan="5" style="text-align: center; color: #888;">' +
+        'No decision data \u2014 snake is dead at this turn</td></tr>';
+    }
+
+    function restoreLiveSelectionPanel() {
+      const fatalNote = document.getElementById('fatalConsentNote');
+      if (fatalNote) fatalNote.style.display = 'none';
+      const badge = document.getElementById('intentModeBadge');
+      if (badge) badge.style.display = '';
+      const submitSection = document.querySelector('#moveControls .submit-section');
+      if (submitSection) submitSection.style.display = '';
+      if (selectedSnakeId) {
+        showSelectionUI();
+      } else {
+        hideSelectionUI();
+      }
+    }
+
+    (function setupTurnSlider() {
+      const slider = document.getElementById('playTurnSlider');
+      if (!slider) return;
+
+      // Take the interaction lock the instant the pointer lands so a live update
+      // arriving before the first move can't reposition the thumb, and warm the
+      // logs so the first drag frame can render straight from cache.
+      slider.addEventListener('pointerdown', () => {
+        historicKeyFocus = 'scrubber';
+        isScrubbing = true;
+        scrubRenderTurn = parseInt(slider.value, 10);
+        primeHistoricForScrub();
+      });
+
+      // Dragging updates the cheap counter/buttons immediately and schedules a
+      // cache-only, rAF-coalesced board repaint so the board tracks the drag
+      // without any network round-trip. The full (heavy) render runs on commit.
+      slider.addEventListener('input', (e) => {
+        historicKeyFocus = 'scrubber';
+        isScrubbing = true;
+        const val = parseInt(e.target.value, 10);
+        previewScrub(val);
+        schedulePreviewRender(val);
+      });
+
+      // Release/commit: drop the lock, apply any deferred geometry, then run the
+      // coalesced load for the released value. Idempotent across pointerup+change.
+      const finish = () => {
+        if (!isScrubbing) return;
+        isScrubbing = false;
+        slider.max = liveMaxTurn;
+        commitScrub(parseInt(slider.value, 10));
+      };
+      document.addEventListener('pointerup', finish);
+      slider.addEventListener('change', finish); // keyboard (Home/End/PageUp) path
+      slider.addEventListener('blur', finish);
+    })();
 
     document.getElementById('gameCanvas').addEventListener('click', handleCanvasClick);
 
@@ -1672,6 +3194,20 @@
         ws.send(JSON.stringify({ type: 'ping', clientTime: Date.now() }));
       }
     }, 5000);
+
+    (() => {
+      const bufferInput = document.getElementById('commitBufferInput');
+      if (bufferInput) {
+        bufferInput.value = commitBufferMs;
+        bufferInput.addEventListener('change', () => {
+          const val = parseInt(bufferInput.value, 10);
+          if (Number.isFinite(val)) {
+            sendCommitBuffer(val);
+          }
+          bufferInput.value = commitBufferMs;
+        });
+      }
+    })();
 
     connectWebSocket();
   </script>

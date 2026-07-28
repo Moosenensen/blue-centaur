@@ -37,6 +37,220 @@ const BoardRenderer = (function () {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   }
 
+  // Given the previous turn's snakes and the current turn's snakes, return the
+  // snakes that vanished (present last turn, gone this turn) along with their
+  // LAST-KNOWN head position and body. We deliberately do NOT infer or advance
+  // the death cell: the game server currently removes a snake from board.snakes
+  // the moment it dies, so its true final resting place is not available here.
+  // Reporting the last-known position is honest (that is genuinely where the
+  // snake was); a real final-resting-place marker requires the server to keep
+  // dead snakes in the state for one turn. `excludeIds` skips snakes whose
+  // markers are drawn explicitly elsewhere (e.g. our own snake).
+  function getDisappearedSnakes(prevSnakes, currentSnakes, excludeIds) {
+    if (!prevSnakes || prevSnakes.length === 0) return [];
+    const exclude = excludeIds instanceof Set ? excludeIds : new Set(excludeIds || []);
+    const currentIds = new Set((currentSnakes || []).map((s) => s.id));
+    const dead = [];
+    prevSnakes.forEach((s) => {
+      if (currentIds.has(s.id) || exclude.has(s.id)) return;
+      const prevBody =
+        s.body && s.body.length ? s.body : s.head ? [s.head] : [];
+      if (!prevBody.length) return;
+      dead.push({
+        id: s.id,
+        head: prevBody[0],
+        body: prevBody.slice(),
+        color: s.customizations?.color || s.color || "#888888",
+        emoji: s.emoji || "\u{1F40D}",
+      });
+    });
+    return dead;
+  }
+
+  // Move a board cell one step in a Battlesnake direction. Returns null for
+  // missing inputs so callers can fall back gracefully. y grows upward in board
+  // coordinates (the renderer flips it for canvas y).
+  function applyDirection(cell, move) {
+    if (!cell || !move) return null;
+    switch (move) {
+      case "up":
+        return { x: cell.x, y: cell.y + 1 };
+      case "down":
+        return { x: cell.x, y: cell.y - 1 };
+      case "left":
+        return { x: cell.x - 1, y: cell.y };
+      case "right":
+        return { x: cell.x + 1, y: cell.y };
+    }
+    return null;
+  }
+
+  // Single source of truth for on-board click hit-testing. Maps a click event
+  // to a board cell using the CSS-displayed size (`getBoundingClientRect`) for
+  // BOTH the cell size and the click offset, so it stays correct when the canvas
+  // is scaled by CSS (its internal pixel buffer can differ from its rendered
+  // size). Returns the board cell `{x, y}` (origin bottom-left, matching the
+  // renderer's coordinate system). Callers should range-check against the board.
+  function getClickedCell(canvas, board, event) {
+    if (!canvas || !board) return null;
+    const rect = canvas.getBoundingClientRect();
+    const cellSize = Math.min(rect.width / board.width, rect.height / board.height);
+    if (!cellSize) return null;
+    const x = Math.floor((event.clientX - rect.left) / cellSize);
+    const y = board.height - 1 - Math.floor((event.clientY - rect.top) / cellSize);
+    return { x, y };
+  }
+
+  // Find the first snake whose body occupies `cell`. An optional `filter(snake)`
+  // predicate lets each surface keep its own clickability gating rule.
+  function findSnakeAtCell(board, cell, filter) {
+    if (!board || !cell) return null;
+    for (const snake of board.snakes) {
+      if (filter && !filter(snake)) continue;
+      if (snake.body.some((seg) => seg.x === cell.x && seg.y === cell.y)) {
+        return snake;
+      }
+    }
+    return null;
+  }
+
+  // Find the id of the snake whose Voronoi territory owns `cell`, or null.
+  function findTerritoryOwnerAtCell(territoryCells, cell) {
+    if (!territoryCells || !cell) return null;
+    for (const [sid, cells] of Object.entries(territoryCells)) {
+      if (cells && cells.some((c) => c.x === cell.x && c.y === cell.y)) {
+        return sid;
+      }
+    }
+    return null;
+  }
+
+  // Draw a dead-head marker at a board cell. A solid marker (shadow=false) is a
+  // filled disc in the snake's color with a white ✗; a shadow marker
+  // (shadow=true) is a ghosted/translucent disc with a dashed outline and a
+  // colored ✗, used for our snake's INTENDED (attempted) move when it differs
+  // from where the server actually placed us.
+  function drawDeathMarker(ctx, head, boardHeight, cellSize, color, shadow) {
+    if (!head) return;
+    const cx = head.x * cellSize + cellSize / 2;
+    const cy = (boardHeight - 1 - head.y) * cellSize + cellSize / 2;
+    const r = cellSize * 0.34;
+    const markColor = color || "#888888";
+    ctx.save();
+    if (shadow) {
+      ctx.globalAlpha = 0.35;
+      ctx.fillStyle = markColor;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.setLineDash([
+        Math.max(2, cellSize * 0.1),
+        Math.max(2, cellSize * 0.08),
+      ]);
+      ctx.lineWidth = Math.max(1.5, cellSize * 0.06);
+      ctx.strokeStyle = markColor;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    } else {
+      ctx.fillStyle = markColor;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.lineWidth = Math.max(1.5, cellSize * 0.07);
+      ctx.strokeStyle = "#000000";
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    const d = r * 0.55;
+    ctx.lineCap = "round";
+    ctx.lineWidth = Math.max(1.5, cellSize * 0.1);
+    ctx.strokeStyle = shadow ? markColor : "#ffffff";
+    ctx.globalAlpha = shadow ? 0.85 : 1;
+    ctx.beginPath();
+    ctx.moveTo(cx - d, cy - d);
+    ctx.lineTo(cx + d, cy + d);
+    ctx.moveTo(cx + d, cy - d);
+    ctx.lineTo(cx - d, cy + d);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Drawn at a snake's LAST-KNOWN head when we have no authoritative final
+  // resting position from the server. A "?" inside a disc with arrows pointing
+  // outward in all four directions: it could have ended up anywhere from here.
+  function drawUnknownDeathMarker(ctx, head, boardHeight, cellSize, color) {
+    if (!head) return;
+    const cx = head.x * cellSize + cellSize / 2;
+    const cy = (boardHeight - 1 - head.y) * cellSize + cellSize / 2;
+    const r = cellSize * 0.34;
+    const markColor = color || "#888888";
+    ctx.save();
+    // Disc background so the glyph reads on any board cell.
+    ctx.fillStyle = markColor;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.lineWidth = Math.max(1.5, cellSize * 0.07);
+    ctx.strokeStyle = "#000000";
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Four arrows pointing outward (up, down, left, right) from the disc edge.
+    const arrowColor = "#000000";
+    ctx.strokeStyle = arrowColor;
+    ctx.fillStyle = arrowColor;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = Math.max(1.5, cellSize * 0.06);
+    const start = r * 1.02;
+    const end = r * 1.5;
+    const headLen = Math.max(2, cellSize * 0.11);
+    const dirs = [
+      { x: 0, y: -1 },
+      { x: 0, y: 1 },
+      { x: -1, y: 0 },
+      { x: 1, y: 0 },
+    ];
+    for (const dir of dirs) {
+      const sx = cx + dir.x * start;
+      const sy = cy + dir.y * start;
+      const ex = cx + dir.x * end;
+      const ey = cy + dir.y * end;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(ex, ey);
+      ctx.stroke();
+      // Arrowhead: two short strokes angled back from the tip (perpendicular).
+      const px = -dir.y;
+      const py = dir.x;
+      ctx.beginPath();
+      ctx.moveTo(ex, ey);
+      ctx.lineTo(
+        ex - dir.x * headLen + px * headLen * 0.6,
+        ey - dir.y * headLen + py * headLen * 0.6,
+      );
+      ctx.moveTo(ex, ey);
+      ctx.lineTo(
+        ex - dir.x * headLen - px * headLen * 0.6,
+        ey - dir.y * headLen - py * headLen * 0.6,
+      );
+      ctx.stroke();
+    }
+
+    // "?" glyph centered in the disc.
+    ctx.fillStyle = "#ffffff";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = `bold ${Math.max(8, Math.round(cellSize * 0.5))}px sans-serif`;
+    ctx.fillText("?", cx, cy + cellSize * 0.02);
+    ctx.restore();
+  }
+
   function getMoveQuality(score, allScores) {
     if (score == null || allScores.length === 0) return "not-evaluated";
     const maxScore = Math.max(...allScores);
@@ -257,6 +471,10 @@ const BoardRenderer = (function () {
     const selectionGlow = options?.selectionGlow || null;
     const isControlled = options?.isControlled || false;
     const invulnLevel = snake.invulnerabilityLevel || 0;
+    // Ghost mode renders a dead snake using the exact same continuous body
+    // shape as a live snake, but translucent and with a colored outline, so a
+    // dead snake reads as the same creature, just faded out.
+    const ghost = options?.ghost || false;
 
     const visited = new Set();
     const segments = [];
@@ -389,27 +607,67 @@ const BoardRenderer = (function () {
       ctx.restore();
     }
 
-    ctx.fillStyle = snakeColor;
-    for (const { segment, conn } of segments) {
-      const sx = segment.x * cellSize;
-      const sy = (boardHeight - 1 - segment.y) * cellSize;
-      ctx.fillRect(sx + gap, sy + gap, cellSize - 2 * gap, cellSize - 2 * gap);
-      if (conn.hasRight)
-        ctx.fillRect(
-          sx + cellSize - gap - 1,
-          sy + gap,
-          gap + 1,
-          cellSize - 2 * gap,
-        );
-      if (conn.hasLeft) ctx.fillRect(sx, sy + gap, gap + 1, cellSize - 2 * gap);
-      if (conn.hasTop) ctx.fillRect(sx + gap, sy, cellSize - 2 * gap, gap + 1);
-      if (conn.hasBottom)
-        ctx.fillRect(
-          sx + gap,
-          sy + cellSize - gap - 1,
-          cellSize - 2 * gap,
-          gap + 1,
-        );
+    if (ghost) {
+      // Dead snake: same continuous body shape as a live snake, but the solid
+      // fill is replaced by diagonal stripes in the team color, slanted the
+      // opposite way ("\") to the fertile-ground stripes ("/").
+      ctx.save();
+      ctx.beginPath();
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+      for (const { segment, conn } of segments) {
+        const sx = segment.x * cellSize;
+        const sy = (boardHeight - 1 - segment.y) * cellSize;
+        ctx.rect(sx + gap, sy + gap, cellSize - 2 * gap, cellSize - 2 * gap);
+        if (conn.hasRight)
+          ctx.rect(sx + cellSize - gap - 1, sy + gap, gap + 1, cellSize - 2 * gap);
+        if (conn.hasLeft) ctx.rect(sx, sy + gap, gap + 1, cellSize - 2 * gap);
+        if (conn.hasTop) ctx.rect(sx + gap, sy, cellSize - 2 * gap, gap + 1);
+        if (conn.hasBottom)
+          ctx.rect(sx + gap, sy + cellSize - gap - 1, cellSize - 2 * gap, gap + 1);
+        if (sx < minX) minX = sx;
+        if (sy < minY) minY = sy;
+        if (sx + cellSize > maxX) maxX = sx + cellSize;
+        if (sy + cellSize > maxY) maxY = sy + cellSize;
+      }
+      ctx.clip();
+      const bh = maxY - minY;
+      const bw = maxX - minX;
+      ctx.strokeStyle = hexToRgba(snakeColor, 0.95);
+      ctx.lineWidth = Math.max(1.5, cellSize / 7);
+      const stripeSpacing = Math.max(4, cellSize / 3.5);
+      for (let o = -bh; o <= bw; o += stripeSpacing) {
+        ctx.beginPath();
+        ctx.moveTo(minX + o, minY);
+        ctx.lineTo(minX + o + bh, minY + bh);
+        ctx.stroke();
+      }
+      ctx.restore();
+    } else {
+      ctx.fillStyle = snakeColor;
+      for (const { segment, conn } of segments) {
+        const sx = segment.x * cellSize;
+        const sy = (boardHeight - 1 - segment.y) * cellSize;
+        ctx.fillRect(sx + gap, sy + gap, cellSize - 2 * gap, cellSize - 2 * gap);
+        if (conn.hasRight)
+          ctx.fillRect(
+            sx + cellSize - gap - 1,
+            sy + gap,
+            gap + 1,
+            cellSize - 2 * gap,
+          );
+        if (conn.hasLeft) ctx.fillRect(sx, sy + gap, gap + 1, cellSize - 2 * gap);
+        if (conn.hasTop) ctx.fillRect(sx + gap, sy, cellSize - 2 * gap, gap + 1);
+        if (conn.hasBottom)
+          ctx.fillRect(
+            sx + gap,
+            sy + cellSize - gap - 1,
+            cellSize - 2 * gap,
+            gap + 1,
+          );
+      }
     }
 
     if (isControlled) {
@@ -555,6 +813,12 @@ const BoardRenderer = (function () {
     const snakeId = options?.snakeId || null;
     const chosenMove = options?.chosenMove || null;
     const showChosenArrow = options?.showChosenArrow !== false;
+    // Interactive (live) vs read-only (historic) rendering. Defaults to true so
+    // existing callers are unchanged. When false, control-only overlays such as
+    // server-staged move arrows are suppressed — the historic/readonly play view
+    // and the Game History viewer render the board, candidate cells, and the
+    // logged chosen-move arrow, but never live staging affordances.
+    const interactive = options?.interactive !== false;
 
     if (!gameState || !gameState.board) return;
 
@@ -608,8 +872,20 @@ const BoardRenderer = (function () {
       board.fertileTiles.forEach((tile) => {
         const x = tile.x * cellSize;
         const y = (board.height - 1 - tile.y) * cellSize;
-        ctx.fillStyle = "rgba(222, 198, 160, 0.4)";
-        ctx.fillRect(x, y, cellSize, cellSize);
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x, y, cellSize, cellSize);
+        ctx.clip();
+        ctx.strokeStyle = "rgba(240, 198, 70, 0.85)";
+        ctx.lineWidth = Math.max(1.5, cellSize / 7);
+        const stripeSpacing = Math.max(4, cellSize / 3.5);
+        for (let offset = 0; offset <= cellSize * 2; offset += stripeSpacing) {
+          ctx.beginPath();
+          ctx.moveTo(x + offset, y);
+          ctx.lineTo(x + offset - cellSize, y + cellSize);
+          ctx.stroke();
+        }
+        ctx.restore();
       });
     }
 
@@ -786,9 +1062,24 @@ const BoardRenderer = (function () {
       let arrowMove = null;
       let arrowColor = "#4CAF50";
       let arrowCommitted = false;
+      // Replay styling (options.chosenMoveStyle):
+      //   'submitted' (default)   — solid arrow: the move actually sent to the
+      //                             game server (ground truth).
+      //   'recommendation-only'   — dashed grey arrow: no submitted_move was
+      //                             logged for this row, so the arrow shows the
+      //                             bot's recommendation only.
+      // options.secondaryMove — a thin dashed grey hint arrow for the bot's
+      // recommendation when it differs from the submitted move.
+      let arrowDashed = false;
+      let secondaryMove = null;
       if (showChosenArrow && snake.id === snakeId && chosenMove) {
         arrowMove = chosenMove;
-      } else if (stagedForThisSnake) {
+        if (options?.chosenMoveStyle === "recommendation-only") {
+          arrowColor = "#9E9E9E";
+          arrowDashed = true;
+        }
+        secondaryMove = options?.secondaryMove || null;
+      } else if (interactive && stagedForThisSnake) {
         arrowMove = stagedForThisSnake.move;
         arrowColor = stagedForThisSnake.color || "#4CAF50";
         arrowCommitted = !!stagedForThisSnake.committed;
@@ -798,53 +1089,238 @@ const BoardRenderer = (function () {
         if (shead) {
           const x = shead.x * cellSize;
           const y = (board.height - 1 - shead.y) * cellSize;
-          ctx.strokeStyle = arrowColor;
-          ctx.lineWidth = Math.max(cellSize * 0.18, 6);
-          if (arrowCommitted) {
-            ctx.setLineDash([]);
-          } else {
-            ctx.setLineDash([cellSize * 0.2, cellSize * 0.12]);
-          }
-          ctx.beginPath();
           const centerX = x + cellSize / 2;
           const centerY = y + cellSize / 2;
           const arrowLen = cellSize * 1.2;
-          let endX = centerX;
-          let endY = centerY;
-          switch (arrowMove) {
-            case "up":
-              endY -= arrowLen;
-              break;
-            case "down":
-              endY += arrowLen;
-              break;
-            case "left":
-              endX -= arrowLen;
-              break;
-            case "right":
-              endX += arrowLen;
-              break;
+          const endpointFor = (move) => {
+            let ex = centerX;
+            let ey = centerY;
+            switch (move) {
+              case "up":
+                ey -= arrowLen;
+                break;
+              case "down":
+                ey += arrowLen;
+                break;
+              case "left":
+                ex -= arrowLen;
+                break;
+              case "right":
+                ex += arrowLen;
+                break;
+            }
+            return { ex, ey };
+          };
+          const drawArrow = (move, color, lineWidth, dashed, headScale, chevrons) => {
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = lineWidth;
+            ctx.setLineDash(dashed ? [lineWidth * 1.6, lineWidth * 1.4] : []);
+            const { ex, ey } = endpointFor(move);
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(ex, ey);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            const angle = Math.atan2(ey - centerY, ex - centerX);
+            const headSize = Math.max(cellSize * 0.45, 18) * headScale;
+            const drawHead = (tipX, tipY) => {
+              ctx.beginPath();
+              ctx.moveTo(tipX, tipY);
+              ctx.lineTo(
+                tipX - headSize * Math.cos(angle - Math.PI / 6),
+                tipY - headSize * Math.sin(angle - Math.PI / 6),
+              );
+              ctx.lineTo(
+                tipX - headSize * Math.cos(angle + Math.PI / 6),
+                tipY - headSize * Math.sin(angle + Math.PI / 6),
+              );
+              ctx.closePath();
+              ctx.fill();
+            };
+            drawHead(ex, ey);
+            if (chevrons > 1) {
+              const back = headSize * 0.7;
+              drawHead(ex - back * Math.cos(angle), ey - back * Math.sin(angle));
+            }
+            return { ex, ey };
+          };
+
+          // Secondary bot-recommendation hint FIRST so the primary draws over it.
+          if (secondaryMove && secondaryMove !== arrowMove) {
+            drawArrow(secondaryMove, "#9E9E9E", Math.max(cellSize * 0.08, 3), true, 0.6, 1);
           }
-          ctx.moveTo(centerX, centerY);
-          ctx.lineTo(endX, endY);
-          ctx.stroke();
-          ctx.setLineDash([]);
-          const angle = Math.atan2(endY - centerY, endX - centerX);
-          const headSize = Math.max(cellSize * 0.45, 18);
-          ctx.beginPath();
-          ctx.moveTo(endX, endY);
-          ctx.lineTo(
-            endX - headSize * Math.cos(angle - Math.PI / 6),
-            endY - headSize * Math.sin(angle - Math.PI / 6),
+
+          // Staged and committed arrows share the same color (grey for the
+          // bot, the controller's color for a human). The ONLY visual
+          // difference is the arrowhead count: a staged move draws a single
+          // chevron, a committed move a double chevron.
+          const { ex: endX, ey: endY } = drawArrow(
+            arrowMove,
+            arrowColor,
+            Math.max(cellSize * 0.18, 6),
+            arrowDashed,
+            1,
+            arrowCommitted ? 2 : 1,
           );
-          ctx.lineTo(
-            endX - headSize * Math.cos(angle + Math.PI / 6),
-            endY - headSize * Math.sin(angle + Math.PI / 6),
-          );
-          ctx.closePath();
-          ctx.fillStyle = arrowColor;
-          ctx.fill();
+
+          // Fatal-move warning: the staged/committed move walks the head into
+          // certain death (wall, own body, or a non-severable enemy). The move
+          // is NEVER auto-corrected — the server commits it verbatim — so we
+          // mark the destination cell with a red ⃠ (no-entry circle + X) to warn
+          // the human. We keep the arrow's source colour intact so the warning
+          // is additive, not a replacement.
+          // options.fatalConsented (replay): this turn's submitted move went
+          // through the fatal-move confirmation dialog — flag it with the same
+          // red no-entry marker so a deliberate death is visible in review.
+          if ((stagedForThisSnake && stagedForThisSnake.fatal) || options?.fatalConsented) {
+            let dcx = 0, dcy = 0;
+            switch (arrowMove) {
+              case "up": dcy = 1; break;
+              case "down": dcy = -1; break;
+              case "left": dcx = -1; break;
+              case "right": dcx = 1; break;
+            }
+            const destCol = shead.x + dcx;
+            const destRow = board.height - 1 - (shead.y + dcy);
+            const mx = destCol * cellSize + cellSize / 2;
+            const my = destRow * cellSize + cellSize / 2;
+            const r = cellSize * 0.32;
+            ctx.setLineDash([]);
+            ctx.lineWidth = Math.max(cellSize * 0.1, 3);
+            ctx.strokeStyle = "#ff1744";
+            ctx.beginPath();
+            ctx.arc(mx, my, r, 0, Math.PI * 2);
+            ctx.stroke();
+            const d = r * 0.6;
+            ctx.beginPath();
+            ctx.moveTo(mx - d, my - d);
+            ctx.lineTo(mx + d, my + d);
+            ctx.moveTo(mx + d, my - d);
+            ctx.lineTo(mx - d, my + d);
+            ctx.stroke();
+          }
         }
+      }
+    });
+
+    // Dead-head markers (drawn last so they sit on top of live snakes). This is
+    // the SINGLE centralized death-rendering path shared by live play, /play
+    // historic scrubbing, and /history. We build one unified list of death
+    // entries, then derive each snake's authoritative final cell + intended
+    // (staged) cell the same way for every consumer:
+    //   - `actual` (solid marker): the server-decided final cell. Taken from an
+    //     explicit actualHead (history: last-known head stepped by server_move)
+    //     when present, else derived from the engine's authoritative `lastMoves`
+    //     map (last-known head stepped one cell in the recorded direction). Same
+    //     source for our snakes and enemies.
+    //   - `intended` (shadow marker): the move we actually submitted. Taken from
+    //     an explicit intendedHead (history: last-known head stepped by
+    //     submitted_move) when present, else the `submittedMoves` map (live:
+    //     client-tracked committed move), else the staged-move map. Only drawn
+    //     when it differs from the server-decided cell.
+    //   - When neither an explicit actualHead nor `lastMoves` is available
+    //     (older logs, or the game's terminal move with no following state),
+    //     fall back to the "unknown ?" marker at the last-known head.
+    const ourDeaths = options?.ourDeaths || [];
+    const excludeIds = new Set(
+      ourDeaths.map((d) => d.id).filter((id) => id != null),
+    );
+    let deadSnakes = options?.deadSnakes || null;
+    if (!deadSnakes && options?.previousBoard) {
+      deadSnakes = getDisappearedSnakes(
+        options.previousBoard.snakes,
+        board.snakes,
+        excludeIds,
+      );
+    }
+    // The authoritative move map rides along on the rendered game state (it is
+    // logged inside game_state JSONB, so historic scrubbing and /history get it
+    // for free); an explicit option can override it.
+    const lastMoves = options?.lastMoves || gameState?.lastMoves || null;
+    const stagedMovesForDeaths = options?.stagedMoves || null;
+    // Live: the client tracks the move it actually committed per snake ({id: move}).
+    // A dead snake is gone from the server's staged-move broadcast, so this map is
+    // the only source for its intended (ghost) cell.
+    const submittedMovesForDeaths = options?.submittedMoves || null;
+
+    const deathEntries = [];
+    if (deadSnakes) {
+      deadSnakes.forEach((d) => {
+        deathEntries.push({
+          id: d.id,
+          lastHead: d.head,
+          body: d.body,
+          color: d.color,
+          intendedHead: undefined,
+          actualHead: undefined,
+        });
+      });
+    }
+    ourDeaths.forEach((d) => {
+      deathEntries.push({
+        id: d.id,
+        lastHead: d.lastHead || d.intendedHead || null,
+        body: d.body || null,
+        color: d.color,
+        intendedHead: d.intendedHead,
+        actualHead: d.actualHead,
+      });
+    });
+
+    deathEntries.forEach((d) => {
+      // Ghosted last-known body so the dead snake still reads on the board.
+      if (d.body)
+        renderSnakeUnified(
+          ctx,
+          { body: d.body, color: d.color },
+          board.height,
+          cellSize,
+          { ghost: true },
+        );
+
+      // Authoritative final cell: explicit override first, else lastMoves.
+      let actual = d.actualHead || null;
+      if (!actual && lastMoves && d.id != null && d.lastHead) {
+        actual = applyDirection(d.lastHead, lastMoves[d.id]);
+      }
+      // Intended/submitted cell: explicit override first, else the live
+      // committed-move map, else the staged-move map.
+      let intended = d.intendedHead || null;
+      if (!intended && submittedMovesForDeaths && d.id != null && d.lastHead) {
+        const submitted = submittedMovesForDeaths[d.id];
+        if (submitted) {
+          intended = applyDirection(d.lastHead, submitted);
+        }
+      }
+      if (!intended && stagedMovesForDeaths && d.id != null && d.lastHead) {
+        const staged = stagedMovesForDeaths[d.id];
+        if (staged && staged.move) {
+          intended = applyDirection(d.lastHead, staged.move);
+        }
+      }
+
+      const same =
+        intended &&
+        actual &&
+        intended.x === actual.x &&
+        intended.y === actual.y;
+      if (intended && !same) {
+        drawDeathMarker(ctx, intended, board.height, cellSize, d.color, true);
+      }
+      if (actual) {
+        // Authoritative final head → solid marker.
+        drawDeathMarker(ctx, actual, board.height, cellSize, d.color, false);
+      } else {
+        // No authoritative final position (older logs / no lastMoves) → "?"
+        // marker at the last-known head.
+        drawUnknownDeathMarker(
+          ctx,
+          d.lastHead || intended,
+          board.height,
+          cellSize,
+          d.color,
+        );
       }
     });
 
@@ -888,7 +1364,7 @@ const BoardRenderer = (function () {
 
       button.onclick = (e) => {
         e.stopPropagation();
-        onCellClick(move.direction);
+        onCellClick(move.direction, e);
       };
       const scoreText =
         move.score != null
@@ -901,33 +1377,84 @@ const BoardRenderer = (function () {
     });
   }
 
-  function renderSnakeInfo(container, gameState, ourSnakeId, holds) {
-    if (!gameState || !gameState.board) {
-      container.innerHTML = "";
-      return;
+  // Single source of truth for team identity on the client, mirroring the
+  // server-side TeamDetector rule: squad → color → snake id.
+  function getTeamKey(snake) {
+    if (!snake) return "";
+    return snake.squad || snake.customizations?.color || snake.color || snake.id;
+  }
+
+  // Turns a raw game-server team id like "team_red" into a friendly label
+  // ("Team Red"). Returns null when there's nothing usable.
+  function prettifyTeamName(teamId) {
+    if (!teamId || !String(teamId).trim()) return null;
+    return String(teamId)
+      .trim()
+      .split(/[_\s-]+/)
+      .filter(Boolean)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ");
+  }
+
+  // Friendly display name for a team given one of its snakes: game-server team
+  // name first, then squad, then color, then a generic fallback.
+  function teamDisplayName(snake) {
+    return (
+      prettifyTeamName(snake?.teamID) ||
+      snake?.squad ||
+      snake?.customizations?.color ||
+      snake?.color ||
+      "Team"
+    );
+  }
+
+  // Builds the HTML for one snake row. `opts` controls history-viewer extras:
+  // selectable (clickable to switch perspective) and active (current
+  // perspective). Without opts it renders the plain play-page row.
+  function renderSnakeInfoItem(snake, ourSnakeId, holdsMap, opts, currentTurn) {
+    const isOurSnake = snake.id === ourSnakeId;
+    const isDead = !!(opts && opts.dead);
+    const snakeColor = snake.customizations?.color || snake.color || "#888888";
+    const invulnLevel = snake.invulnerabilityLevel || 0;
+    let invulnDisplay = "";
+    if (invulnLevel !== 0) {
+      const icon = invulnLevel > 0 ? "\u{1F6E1}\uFE0F" : "\u26A0\uFE0F";
+      // Turns remaining (inclusive of the current turn) from the absolute expiry
+      // turn supplied by the server. Falls back to just the level when the expiry
+      // is missing (older logs) or already passed at the displayed turn.
+      const expiry = snake.invulnerabilityExpiryTurn;
+      let turnsSuffix = "";
+      if (typeof expiry === "number" && typeof currentTurn === "number") {
+        const remaining = expiry - currentTurn + 1;
+        if (remaining >= 1) turnsSuffix = ` \u00B7 ${remaining}t`;
+      }
+      invulnDisplay = `<span>${icon} ${invulnLevel}${turnsSuffix}</span>`;
     }
-    const holdsMap = holds || {};
-    const snakes = gameState.board.snakes;
-    container.innerHTML = snakes
-      .map((snake) => {
-        const isOurSnake = snake.id === ourSnakeId;
-        const snakeColor =
-          snake.customizations?.color || snake.color || "#888888";
-        const invulnLevel = snake.invulnerabilityLevel || 0;
-        const invulnDisplay =
-          invulnLevel !== 0
-            ? `<span>${invulnLevel > 0 ? "\u{1F6E1}\uFE0F" : "\u26A0\uFE0F"} ${invulnLevel}</span>`
-            : "";
-        const emojiDisplay = snake.emoji || "\u{1F40D}";
-        const holdCount = holdsMap[snake.id] || 0;
-        const holdBadge = holdCount > 0
-          ? `<span style="background:#ff9800;color:#fff;padding:1px 6px;border-radius:8px;font-weight:700;">HOLD ${holdCount}</span>`
-          : "";
-        return `
-        <div class="snake-info-item">
+    const emojiDisplay = snake.emoji || "\u{1F40D}";
+    const holdCount = holdsMap[snake.id] || 0;
+    const holdBadge = holdCount > 0
+      ? `<span style="background:#ff9800;color:#fff;padding:1px 6px;border-radius:8px;font-weight:700;">HOLD ${holdCount}</span>`
+      : "";
+    const selectable = opts && opts.selectable;
+    const active = opts && opts.active;
+    const itemClass =
+      "snake-info-item" +
+      (selectable ? " selectable" : "") +
+      (active ? " active-perspective" : "");
+    const styleParts = [];
+    if (selectable) styleParts.push("cursor:pointer;");
+    if (isDead) styleParts.push("opacity:0.45;filter:grayscale(0.6);");
+    const clickAttr =
+      (selectable ? ` data-select-snake="${snake.id}"` : "") +
+      (styleParts.length ? ` style="${styleParts.join("")}"` : "");
+    const deadSuffix = isDead
+      ? ' <span style="color:#aaa;font-weight:400;">(dead)</span>'
+      : "";
+    return `
+        <div class="${itemClass}"${clickAttr}>
           <div class="snake-color-box" style="background-color: ${snakeColor};"></div>
           <div class="snake-details">
-            <div class="snake-name">${emojiDisplay} ${snake.name}${isOurSnake ? " (You)" : ""}</div>
+            <div class="snake-name">${emojiDisplay} ${snake.name}${isOurSnake ? " (You)" : ""}${deadSuffix}</div>
             <div class="snake-id" style="font-size: 0.75em; color: #888; margin-top: 1px;">${snake.id}</div>
             <div class="snake-stats">
               <span>\u{1F4CF} ${snake.body.length}</span>
@@ -937,8 +1464,112 @@ const BoardRenderer = (function () {
           </div>
         </div>
       `;
+  }
+
+  // Renders the participants list. With options.groupByTeam the snakes are
+  // grouped by team (our team first and visually distinguished), and our team's
+  // snakes are made selectable via options.onSelectSnake so the history viewer
+  // can switch perspective. Without options it falls back to the flat list used
+  // by the live play page.
+  function renderSnakeInfo(container, gameState, ourSnakeId, holds, options) {
+    if (!gameState || !gameState.board) {
+      container.innerHTML = "";
+      return;
+    }
+    const holdsMap = holds || {};
+    const snakes = gameState.board.snakes;
+    const currentTurn = gameState.turn;
+    // Dead snakes (options.deadSnakes) are appended to their team groups so the
+    // roster always shows every snake ever seen, greyed out with final length.
+    const boardIds = new Set(snakes.map((s) => s.id));
+    const deadSnakes = ((options && options.deadSnakes) || []).filter(
+      (s) => !boardIds.has(s.id),
+    );
+    const deadIds = new Set(deadSnakes.map((s) => s.id));
+    const allSnakes = snakes.concat(deadSnakes);
+
+    if (!options || !options.groupByTeam) {
+      container.innerHTML = allSnakes
+        .map((snake) =>
+          renderSnakeInfoItem(
+            snake, ourSnakeId, holdsMap,
+            deadIds.has(snake.id) ? { dead: true } : null, currentTurn,
+          ),
+        )
+        .join("");
+      return;
+    }
+
+    // Group snakes by team key.
+    const teams = new Map();
+    for (const snake of allSnakes) {
+      const key = getTeamKey(snake);
+      if (!teams.has(key)) teams.set(key, []);
+      teams.get(key).push(snake);
+    }
+
+    const selectableIds = options.selectableSnakeIds || null;
+    const canSelect = !!options.onSelectSnake;
+    // Identify our team even when there is no perspective snake set (e.g. live
+    // play with nothing selected yet) by falling back to any selectable snake.
+    const ourSnake =
+      allSnakes.find((s) => s.id === ourSnakeId) ||
+      (selectableIds ? allSnakes.find((s) => selectableIds.has(s.id)) : null);
+    const ourTeamKey = ourSnake ? getTeamKey(ourSnake) : null;
+
+    // Our team first, then enemy teams.
+    const orderedKeys = Array.from(teams.keys()).sort((a, b) => {
+      if (a === ourTeamKey) return -1;
+      if (b === ourTeamKey) return 1;
+      return 0;
+    });
+
+    const html = orderedKeys
+      .map((key) => {
+        const teamSnakes = teams.get(key);
+        const isOurTeam = key === ourTeamKey;
+        const teamColor =
+          teamSnakes[0].customizations?.color ||
+          teamSnakes[0].color ||
+          "#888888";
+        const name = teamDisplayName(teamSnakes[0]);
+        const label = isOurTeam ? `${name} (Our Team)` : name;
+        const headerClass = isOurTeam
+          ? "team-group-header our-team"
+          : "team-group-header enemy-team";
+        const items = teamSnakes
+          .map((snake) =>
+            renderSnakeInfoItem(snake, ourSnakeId, holdsMap, {
+              selectable:
+                canSelect &&
+                isOurTeam &&
+                (selectableIds ? selectableIds.has(snake.id) : !deadIds.has(snake.id)),
+              active: snake.id === ourSnakeId,
+              dead: deadIds.has(snake.id),
+            }, currentTurn),
+          )
+          .join("");
+        return `
+        <div class="team-group ${isOurTeam ? "our-team" : "enemy-team"}">
+          <div class="${headerClass}">
+            <span class="team-group-swatch" style="background-color:${teamColor};"></span>
+            <span>${label}</span>
+          </div>
+          ${items}
+        </div>
+      `;
       })
       .join("");
+
+    container.innerHTML = html;
+
+    if (options.onSelectSnake) {
+      container.querySelectorAll("[data-select-snake]").forEach((el) => {
+        el.addEventListener("click", () => {
+          options.onSelectSnake(el.getAttribute("data-select-snake"));
+        });
+      });
+    }
   }
 
   function renderMoveButtons(container, moveState, onMoveClick) {
@@ -1010,8 +1641,7 @@ const BoardRenderer = (function () {
         enemyTerritoryScore: 0,
         enemyLengthScore: 0,
         edgePenaltyScore: 0,
-        selfEnoughSpaceScore: 0,
-        selfSpaceOptimisticScore: 0,
+        selfSpaceScore: 0,
         alliesEnoughSpaceScore: 0,
         opponentsEnoughSpaceScore: 0,
         killsScore: 0,
@@ -1020,6 +1650,8 @@ const BoardRenderer = (function () {
         allyH2HRiskScore: 0,
         waypointGotoScore: 0,
         waypointNearScore: 0,
+        aggressionScore: 0,
+        trappedScore: 0,
         fertileScore: 0,
       };
 
@@ -1141,20 +1773,10 @@ const BoardRenderer = (function () {
       {
         name: "Self Space",
         value:
-          breakdown.selfEnoughSpace ?? breakdown.stats?.selfEnoughSpace ?? 0,
-        weight: breakdown.weights?.selfEnoughSpace ?? 10,
-        weightedScore: breakdown.weighted?.selfEnoughSpaceScore ?? 0,
-        averageWeighted: averageWeighted.selfEnoughSpaceScore ?? 0,
-      },
-      {
-        name: "Self Space (Optimistic)",
-        value:
-          breakdown.selfSpaceOptimistic ??
-          breakdown.stats?.selfSpaceOptimistic ??
-          0,
-        weight: breakdown.weights?.selfSpaceOptimistic ?? 5,
-        weightedScore: breakdown.weighted?.selfSpaceOptimisticScore ?? 0,
-        averageWeighted: averageWeighted.selfSpaceOptimisticScore ?? 0,
+          breakdown.selfSpace ?? breakdown.stats?.selfSpace ?? "—",
+        weight: breakdown.weights?.selfSpace ?? 120,
+        weightedScore: breakdown.weighted?.selfSpaceScore ?? "—",
+        averageWeighted: averageWeighted.selfSpaceScore ?? "—",
       },
       {
         name: "Allies Space",
@@ -1162,7 +1784,7 @@ const BoardRenderer = (function () {
           breakdown.alliesEnoughSpace ??
           breakdown.stats?.alliesEnoughSpace ??
           0,
-        weight: breakdown.weights?.alliesEnoughSpace ?? 5,
+        weight: breakdown.weights?.alliesEnoughSpace ?? 15,
         weightedScore: breakdown.weighted?.alliesEnoughSpaceScore ?? 0,
         averageWeighted: averageWeighted.alliesEnoughSpaceScore ?? 0,
       },
@@ -1172,7 +1794,7 @@ const BoardRenderer = (function () {
           breakdown.opponentsEnoughSpace ??
           breakdown.stats?.opponentsEnoughSpace ??
           0,
-        weight: breakdown.weights?.opponentsEnoughSpace ?? -5,
+        weight: breakdown.weights?.opponentsEnoughSpace ?? -15,
         weightedScore: breakdown.weighted?.opponentsEnoughSpaceScore ?? 0,
         averageWeighted: averageWeighted.opponentsEnoughSpaceScore ?? 0,
       },
@@ -1217,6 +1839,20 @@ const BoardRenderer = (function () {
         weight: breakdown.weights?.waypointNear ?? 0,
         weightedScore: breakdown.weighted?.waypointNearScore ?? 0,
         averageWeighted: averageWeighted.waypointNearScore ?? 0,
+      },
+      {
+        name: "Aggression (hunt weaker)",
+        value: breakdown.aggression ?? "—",
+        weight: breakdown.weights?.aggression ?? 0,
+        weightedScore: breakdown.weighted?.aggressionScore ?? 0,
+        averageWeighted: averageWeighted.aggressionScore ?? 0,
+      },
+      {
+        name: "Trapped (fatal pocket)",
+        value: breakdown.trapped ?? "—",
+        weight: breakdown.weights?.trapped ?? 0,
+        weightedScore: breakdown.weighted?.trappedScore ?? 0,
+        averageWeighted: averageWeighted.trappedScore ?? 0,
       },
       ...(breakdown.fertileTerritory !== undefined && !breakdown.myTerritory
         ? [
@@ -1332,8 +1968,20 @@ const BoardRenderer = (function () {
       board.fertileTiles.forEach((tile) => {
         const x = tile.x * cellSize;
         const y = (board.height - 1 - tile.y) * cellSize;
-        ctx.fillStyle = "rgba(222, 198, 160, 0.4)";
-        ctx.fillRect(x, y, cellSize, cellSize);
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x, y, cellSize, cellSize);
+        ctx.clip();
+        ctx.strokeStyle = "rgba(240, 198, 70, 0.85)";
+        ctx.lineWidth = Math.max(1.5, cellSize / 7);
+        const stripeSpacing = Math.max(4, cellSize / 3.5);
+        for (let offset = 0; offset <= cellSize * 2; offset += stripeSpacing) {
+          ctx.beginPath();
+          ctx.moveTo(x + offset, y);
+          ctx.lineTo(x + offset - cellSize, y + cellSize);
+          ctx.stroke();
+        }
+        ctx.restore();
       });
     }
 
@@ -1400,6 +2048,13 @@ const BoardRenderer = (function () {
     renderMinimap,
     renderTerritoryBoundaries,
     renderSnakeUnified,
+    getTeamKey,
+    getDisappearedSnakes,
+    drawDeathMarker,
+    drawUnknownDeathMarker,
+    getClickedCell,
+    findSnakeAtCell,
+    findTerritoryOwnerAtCell,
     _moveClickHandler: null,
   };
 })();

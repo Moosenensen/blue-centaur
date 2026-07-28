@@ -44,6 +44,8 @@
     tr.server-disconnect td, tr.client-close td { color: #ef9a9a; }
     tr.server-error td, tr.client-error td { color: #ffab91; background: rgba(255,82,82,0.05); }
     tr.server-connect td, tr.client-open td { color: #a5d6a7; }
+    tr.server-idle-close td, tr.client-idle-close td { color: #ffd54f; font-weight: 600; }
+    tr.server-keepalive-terminate td { color: #ff8a65; font-weight: 600; }
     tr.server-subscribe td { color: #90caf9; }
     tr.client-page-hidden td, tr.client-page-visible td, tr.client-page-unload td { color: #ce93d8; }
     tr.client-reconnect-attempt td { color: #ffe082; }
@@ -133,8 +135,9 @@
       return escapeHtml(shorten(s, n));
     }
     const VALID_TYPES = new Set([
-      'server-connect','server-subscribe','server-disconnect','server-error',
-      'client-open','client-close','client-error','client-reconnect-attempt',
+      'server-connect','server-subscribe','server-disconnect','server-error','server-idle-close',
+      'server-keepalive-terminate',
+      'client-open','client-close','client-error','client-reconnect-attempt','client-idle-close',
       'client-page-hidden','client-page-visible','client-page-unload'
     ]);
 

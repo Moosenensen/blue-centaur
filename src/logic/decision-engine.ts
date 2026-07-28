@@ -63,6 +63,7 @@ export class DecisionEngine {
   private simulator: Simulator;
   private config: DecisionConfig;
   private lastFoodSetByGameId: Map<string, Set<string>> = new Map();
+  private static readonly MAX_FOOD_SET_ENTRIES = 20;
   
   constructor(config?: Partial<DecisionConfig>) {
     this.config = {
@@ -106,7 +107,19 @@ export class DecisionEngine {
     const moveAnalysis = this.moveAnalyzer.analyzeMoves(gameState.you, gameState, graph, teamSnakeIds);
     
     // Consider ALL non-lethal moves (safe + risky) - h2h risk is now a weighted penalty
-    const ourMoves = [...moveAnalysis.safe, ...moveAnalysis.risky];
+    let ourMoves = [...moveAnalysis.safe, ...moveAnalysis.risky];
+    
+    // Deterministic ally-collision veto: a head-to-head with a teammate is only
+    // ever something to avoid, never to pursue. If any candidate move does NOT
+    // collide head-on with an ally, drop every ally-colliding candidate before
+    // scoring so the bot can never choose to walk into a teammate's head when an
+    // alternative exists. Enemy head-to-head behaviour is untouched.
+    const nonAllyMoves = ourMoves.filter(
+      move => !(moveAnalysis.h2hRiskByMove.get(move)?.hasAllyRisk ?? false)
+    );
+    if (nonAllyMoves.length > 0) {
+      ourMoves = nonAllyMoves;
+    }
     
     if (ourMoves.length === 0) {
       // No moves available - we're dead
@@ -160,7 +173,7 @@ export class DecisionEngine {
       }
       
       // Update food set for next turn
-      this.lastFoodSetByGameId.set(gameId, currentFoodSet);
+      this.setLastFoodSet(gameId, currentFoodSet);
       
       return {
         move: ourMoves[0],
@@ -181,8 +194,6 @@ export class DecisionEngine {
     
     // Evaluate each of our candidate moves
     const evaluations: MoveEvaluationResult[] = [];
-    let bestMove = ourMoves[0];
-    let bestScore = -Infinity;
     
     for (const move of ourMoves) {
       const moveStates = boardStates.filter(state => state.ourMove === move);
@@ -241,10 +252,26 @@ export class DecisionEngine {
         numStates: moveStates.length,
         averageBreakdown
       });
-      
-      if (averageScore > bestScore) {
-        bestScore = averageScore;
-        bestMove = move;
+    }
+    
+    // Select the best move with a candidate-level fatal-pocket veto.
+    // A move whose averaged `trapped` signal is at/above the fatal threshold leads
+    // into a clearly-fatal dead-end pocket (no tail-chase, not enough room to
+    // outlast our length). We must never pick such a move when a non-fatal
+    // alternative exists — even if the pocket happens to score higher (e.g. a
+    // waypoint sitting inside it). This is the hard guarantee on top of the
+    // strongly-negative `trapped` weight. If EVERY candidate is fatal, we fall
+    // back to scoring among all of them (least-bad death).
+    const FATAL_TRAP_THRESHOLD = 0.5;
+    const nonFatal = evaluations.filter(e => e.averageBreakdown.stats.trapped < FATAL_TRAP_THRESHOLD);
+    const selectionPool = nonFatal.length > 0 ? nonFatal : evaluations;
+    
+    let bestMove = selectionPool[0].move;
+    let bestScore = -Infinity;
+    for (const evalResult of selectionPool) {
+      if (evalResult.averageScore > bestScore) {
+        bestScore = evalResult.averageScore;
+        bestMove = evalResult.move;
       }
     }
     
@@ -285,8 +312,8 @@ export class DecisionEngine {
       evalResult.projectedTerritoryCells = projTerritoryCells;
     }
     
-    // Update food set for next turn
-    this.lastFoodSetByGameId.set(gameId, currentFoodSet);
+    // Update food set for next turn (with LRU cap to avoid unbounded growth)
+    this.setLastFoodSet(gameId, currentFoodSet);
     
     return {
       move: bestMove,
@@ -296,6 +323,31 @@ export class DecisionEngine {
     };
   }
   
+  /**
+   * Called when a game ends. Releases per-game state so it doesn't leak.
+   */
+  public onGameEnd(gameId: string): void {
+    this.lastFoodSetByGameId.delete(gameId);
+  }
+
+  /**
+   * Set the last-food-set for a game, capping the map to MAX_FOOD_SET_ENTRIES
+   * via LRU eviction (oldest insertion key first). Belt-and-suspenders against
+   * the case where /end never arrives for some game.
+   */
+  private setLastFoodSet(gameId: string, foodSet: Set<string>): void {
+    // Re-insert to refresh insertion order for LRU.
+    if (this.lastFoodSetByGameId.has(gameId)) {
+      this.lastFoodSetByGameId.delete(gameId);
+    }
+    this.lastFoodSetByGameId.set(gameId, foodSet);
+    while (this.lastFoodSetByGameId.size > DecisionEngine.MAX_FOOD_SET_ENTRIES) {
+      const oldest = this.lastFoodSetByGameId.keys().next().value;
+      if (oldest === undefined) break;
+      this.lastFoodSetByGameId.delete(oldest);
+    }
+  }
+
   /**
    * Get candidate moves for our snake using the principled rule:
    * Use safe moves if available, otherwise use all risky moves.
@@ -386,7 +438,7 @@ export class DecisionEngine {
         // noise from random move selection affecting board evaluation
         
         // Simulate the board state
-        const simulatedBoard = this.simulator.simulateNextBoardState(gameState, fullMoveSet);
+        const simulatedBoard = this.simulator.simulateNextBoardState(gameState, fullMoveSet, teamSnakeIds);
         
         // Construct new GameState from simulated board
         const nextGameState: GameState = {
@@ -501,8 +553,7 @@ export class DecisionEngine {
       enemyTerritory: 0,
       enemyLength: 0,
       edgePenalty: 0,
-      selfEnoughSpace: 0,
-      selfSpaceOptimistic: 0,
+      selfSpace: 0,
       alliesEnoughSpace: 0,
       opponentsEnoughSpace: 0,
       kills: 0,
@@ -510,7 +561,9 @@ export class DecisionEngine {
       enemyH2HRisk: 0,
       allyH2HRisk: 0,
       waypointGoto: 0,
-      waypointNear: 0
+      waypointNear: 0,
+      aggression: 0,
+      trapped: 0
     };
     
     const sumWeighted = {
@@ -526,8 +579,7 @@ export class DecisionEngine {
       enemyTerritoryScore: 0,
       enemyLengthScore: 0,
       edgePenaltyScore: 0,
-      selfEnoughSpaceScore: 0,
-      selfSpaceOptimisticScore: 0,
+      selfSpaceScore: 0,
       alliesEnoughSpaceScore: 0,
       opponentsEnoughSpaceScore: 0,
       killsScore: 0,
@@ -535,7 +587,9 @@ export class DecisionEngine {
       enemyH2HRiskScore: 0,
       allyH2HRiskScore: 0,
       waypointGotoScore: 0,
-      waypointNearScore: 0
+      waypointNearScore: 0,
+      aggressionScore: 0,
+      trappedScore: 0
     };
     
     let totalScore = 0;
@@ -555,8 +609,7 @@ export class DecisionEngine {
       sumStats.enemyTerritory += evaluation.stats.enemyTerritory;
       sumStats.enemyLength += evaluation.stats.enemyLength;
       sumStats.edgePenalty += evaluation.stats.edgePenalty;
-      sumStats.selfEnoughSpace += evaluation.stats.selfEnoughSpace;
-      sumStats.selfSpaceOptimistic += evaluation.stats.selfSpaceOptimistic;
+      sumStats.selfSpace += evaluation.stats.selfSpace;
       sumStats.alliesEnoughSpace += evaluation.stats.alliesEnoughSpace;
       sumStats.opponentsEnoughSpace += evaluation.stats.opponentsEnoughSpace;
       sumStats.kills += evaluation.stats.kills;
@@ -565,6 +618,8 @@ export class DecisionEngine {
       sumStats.allyH2HRisk += evaluation.stats.allyH2HRisk;
       sumStats.waypointGoto += evaluation.stats.waypointGoto;
       sumStats.waypointNear += evaluation.stats.waypointNear;
+      sumStats.aggression += evaluation.stats.aggression;
+      sumStats.trapped += evaluation.stats.trapped;
       
       // Sum weighted scores
       sumWeighted.myLengthScore += evaluation.weighted.myLengthScore;
@@ -579,8 +634,7 @@ export class DecisionEngine {
       sumWeighted.enemyTerritoryScore += evaluation.weighted.enemyTerritoryScore;
       sumWeighted.enemyLengthScore += evaluation.weighted.enemyLengthScore;
       sumWeighted.edgePenaltyScore += evaluation.weighted.edgePenaltyScore;
-      sumWeighted.selfEnoughSpaceScore += evaluation.weighted.selfEnoughSpaceScore;
-      sumWeighted.selfSpaceOptimisticScore += evaluation.weighted.selfSpaceOptimisticScore;
+      sumWeighted.selfSpaceScore += evaluation.weighted.selfSpaceScore;
       sumWeighted.alliesEnoughSpaceScore += evaluation.weighted.alliesEnoughSpaceScore;
       sumWeighted.opponentsEnoughSpaceScore += evaluation.weighted.opponentsEnoughSpaceScore;
       sumWeighted.killsScore += evaluation.weighted.killsScore;
@@ -589,6 +643,8 @@ export class DecisionEngine {
       sumWeighted.allyH2HRiskScore += evaluation.weighted.allyH2HRiskScore;
       sumWeighted.waypointGotoScore += evaluation.weighted.waypointGotoScore;
       sumWeighted.waypointNearScore += evaluation.weighted.waypointNearScore;
+      sumWeighted.aggressionScore += evaluation.weighted.aggressionScore;
+      sumWeighted.trappedScore += evaluation.weighted.trappedScore;
       
       totalScore += evaluation.score;
     }
@@ -612,8 +668,7 @@ export class DecisionEngine {
         enemyTerritory: sumStats.enemyTerritory / count,
         enemyLength: sumStats.enemyLength / count,
         edgePenalty: sumStats.edgePenalty / count,
-        selfEnoughSpace: sumStats.selfEnoughSpace / count,
-        selfSpaceOptimistic: sumStats.selfSpaceOptimistic / count,
+        selfSpace: sumStats.selfSpace / count,
         alliesEnoughSpace: sumStats.alliesEnoughSpace / count,
         opponentsEnoughSpace: sumStats.opponentsEnoughSpace / count,
         kills: sumStats.kills / count,
@@ -621,7 +676,9 @@ export class DecisionEngine {
         enemyH2HRisk: sumStats.enemyH2HRisk / count,
         allyH2HRisk: sumStats.allyH2HRisk / count,
         waypointGoto: sumStats.waypointGoto / count,
-        waypointNear: sumStats.waypointNear / count
+        waypointNear: sumStats.waypointNear / count,
+        aggression: sumStats.aggression / count,
+        trapped: sumStats.trapped / count
       },
       weights: evaluations[0].weights, // All evaluations use same weights
       weighted: {
@@ -637,8 +694,7 @@ export class DecisionEngine {
         enemyTerritoryScore: sumWeighted.enemyTerritoryScore / count,
         enemyLengthScore: sumWeighted.enemyLengthScore / count,
         edgePenaltyScore: sumWeighted.edgePenaltyScore / count,
-        selfEnoughSpaceScore: sumWeighted.selfEnoughSpaceScore / count,
-        selfSpaceOptimisticScore: sumWeighted.selfSpaceOptimisticScore / count,
+        selfSpaceScore: sumWeighted.selfSpaceScore / count,
         alliesEnoughSpaceScore: sumWeighted.alliesEnoughSpaceScore / count,
         opponentsEnoughSpaceScore: sumWeighted.opponentsEnoughSpaceScore / count,
         killsScore: sumWeighted.killsScore / count,
@@ -646,7 +702,9 @@ export class DecisionEngine {
         enemyH2HRiskScore: sumWeighted.enemyH2HRiskScore / count,
         allyH2HRiskScore: sumWeighted.allyH2HRiskScore / count,
         waypointGotoScore: sumWeighted.waypointGotoScore / count,
-        waypointNearScore: sumWeighted.waypointNearScore / count
+        waypointNearScore: sumWeighted.waypointNearScore / count,
+        aggressionScore: sumWeighted.aggressionScore / count,
+        trappedScore: sumWeighted.trappedScore / count
       }
     };
   }

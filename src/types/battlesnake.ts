@@ -20,6 +20,9 @@ export interface Snake {
   };
   emoji?: string;
   invulnerabilityLevel?: number;
+  // Last absolute game turn on which invulnerabilityLevel still applies. Supplied
+  // by the game server; when absent the level is assumed to apply this turn only.
+  invulnerabilityExpiryTurn?: number;
   teamID?: string;
 }
 
@@ -50,7 +53,21 @@ export interface GameState {
   turn: number;
   board: Board;
   you: Snake;
+  // Authoritative map of snakeId -> the move the server actually made on that
+  // snake's behalf LAST turn (the transition into this turn), including for
+  // snakes that died at the end of last turn (they're already gone from
+  // `board.snakes`). Lets us render a dead snake's true final cell instead of
+  // guessing. Optional for backward compatibility with engines/logs that
+  // predate it.
+  lastMoves?: Record<string, Direction>;
 }
+
+// A board-only view of a game with NO `you`. The centaur server controls many
+// snakes against ONE shared board, so a single shared state cannot carry a
+// meaningful "our snake". Storing the shared board as a BoardSnapshot makes it a
+// compile error to read a per-snake perspective (invulnerability/severability)
+// off it — callers must obtain a real GameState for a specific snake by ID.
+export type BoardSnapshot = Omit<GameState, 'you'>;
 
 export interface MoveResponse {
   move: string;

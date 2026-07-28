@@ -5,9 +5,9 @@
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
-    "start": "node dist/index.js",
-    "dev": "NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true ts-node src/index.ts",
-    "dev:fast": "npm run build && concurrently \"npm run build:watch\" \"nodemon --watch dist --exec node dist/index.js\"",
+    "start": "node --max-old-space-size=512 dist/index.js",
+    "dev": "NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true node --watch --max-old-space-size=512 -r ts-node/register src/index.ts",
+    "dev:fast": "npm run build && concurrently \"npm run build:watch\" \"nodemon --watch dist --exec 'node --max-old-space-size=512 dist/index.js'\"",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
@@ -25,6 +25,8 @@
   "description": "TypeScript Battlesnake AI using Voronoi territory maximization",
   "dependencies": {
     "@google-cloud/storage": "^7.17.1",
+    "drizzle-kit": "^0.31.10",
+    "drizzle-orm": "^0.45.2",
     "express": "^5.1.0",
     "pg": "^8.16.3",
     "ws": "^8.19.0"

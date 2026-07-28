@@ -11,14 +11,14 @@ describe('Enhanced Space Detection', () => {
   beforeEach(() => {
     // Create evaluator with specific weights for testing
     evaluator = new BoardEvaluator({
-      selfEnoughSpace: 20,
+      selfSpace: 20,
       alliesEnoughSpace: 10,
       opponentsEnoughSpace: -15
     });
   });
 
   describe('Basic Space Detection', () => {
-    it('should return +3 when snake has enough space', () => {
+    it('should report plenty (selfSpace > 1) when snake has open room', () => {
       // Snake in open area with lots of space
       const gameState: GameState = {
         game: {
@@ -71,13 +71,14 @@ describe('Enhanced Space Detection', () => {
 
       const result = evaluator.evaluateBoard(gameState, 'our-snake', new Set(['our-snake']));
       
-      console.log('Open space test - selfEnoughSpace:', result.stats.selfEnoughSpace);
+      console.log('Open space test - selfSpace:', result.stats.selfSpace);
       console.log('Open space test - full stats:', result.stats);
       
-      expect(result.stats.selfEnoughSpace).toBeGreaterThanOrEqual(3);
+      // sqrt(room/length): open board room >> length, so plenty scores above 1.0
+      expect(result.stats.selfSpace).toBeGreaterThan(1);
     });
 
-    it('should return -3 when snake is trapped', () => {
+    it('should report scarce room (selfSpace < 1) when snake is trapped', () => {
       // Snake truly trapped in a closed loop with no escape
       const gameState: GameState = {
         game: {
@@ -146,10 +147,11 @@ describe('Enhanced Space Detection', () => {
 
       const result = evaluator.evaluateBoard(gameState, 'our-snake', new Set(['our-snake']));
       
-      console.log('Trapped snake test - selfEnoughSpace:', result.stats.selfEnoughSpace);
+      console.log('Trapped snake test - selfSpace:', result.stats.selfSpace);
       console.log('Trapped snake test - full stats:', result.stats);
       
-      expect(result.stats.selfEnoughSpace).toBe(-3);
+      // Reachable room is far below body length, so sqrt(room/length) stays under 1.0
+      expect(result.stats.selfSpace).toBeLessThan(1);
     });
   });
 
@@ -326,14 +328,14 @@ describe('Enhanced Space Detection', () => {
 
       const result = evaluator.evaluateBoard(gameState, 'our-snake', new Set(['our-snake', 'ally-snake']));
       
-      console.log('Ally space test - selfEnoughSpace:', result.stats.selfEnoughSpace);
+      console.log('Ally space test - selfSpace:', result.stats.selfSpace);
       console.log('Ally space test - alliesEnoughSpace:', result.stats.alliesEnoughSpace);
       console.log('Ally space test - weighted ally score:', result.weighted.alliesEnoughSpaceScore);
       console.log('Ally space test - full stats:', result.stats);
       
       // Both snakes have plenty of space
-      expect(result.stats.selfEnoughSpace).toBeGreaterThanOrEqual(3);
-      expect(result.stats.alliesEnoughSpace).toBeGreaterThanOrEqual(3);
+      expect(result.stats.selfSpace).toBeGreaterThan(1);
+      expect(result.stats.alliesEnoughSpace).toBeGreaterThanOrEqual(1);
       expect(result.weighted.alliesEnoughSpaceScore).not.toBe(0);
     });
   });
@@ -393,14 +395,14 @@ describe('Enhanced Space Detection', () => {
 
       const result = evaluator.evaluateBoard(gameState, 'our-snake', new Set(['our-snake']));
       
-      console.log('Weight test - selfEnoughSpace value:', result.stats.selfEnoughSpace);
-      console.log('Weight test - selfEnoughSpace weight:', result.weights.selfEnoughSpace);
-      console.log('Weight test - selfEnoughSpace weighted score:', result.weighted.selfEnoughSpaceScore);
+      console.log('Weight test - selfSpace value:', result.stats.selfSpace);
+      console.log('Weight test - selfSpace weight:', result.weights.selfSpace);
+      console.log('Weight test - selfSpace weighted score:', result.weighted.selfSpaceScore);
       
       // Verify weight multiplication
-      const expectedWeightedScore = result.stats.selfEnoughSpace * result.weights.selfEnoughSpace;
-      expect(result.weighted.selfEnoughSpaceScore).toBe(expectedWeightedScore);
-      expect(result.weights.selfEnoughSpace).toBe(20); // Our configured weight
+      const expectedWeightedScore = result.stats.selfSpace * result.weights.selfSpace;
+      expect(result.weighted.selfSpaceScore).toBe(expectedWeightedScore);
+      expect(result.weights.selfSpace).toBe(20); // Our configured weight
     });
   });
 });

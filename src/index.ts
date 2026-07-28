@@ -14,7 +14,9 @@ import logsRouter from './routes/logs';
 import configRouter from './routes/config';
 import playRouter from './routes/play';
 import connectionDebugRouter from './routes/connection-debug';
+import activityRouter from './routes/activity';
 import { ConnectionLogger } from './utils/connection-logger';
+import { ServerEventLogger } from './logic/server-event-logger';
 
 const app = express();
 const port = parseInt(process.env.PORT || '5000');
@@ -38,7 +40,9 @@ app.use(express.static(path.join(__dirname, '../src/web')));
 const voronoiStrategy = new VoronoiStrategy();
 const teamDetector = new TeamDetector();
 const logger = new GameLogger();
+const decisionLogger = DecisionLogger.getInstance();
 const gameManager = ActiveGameManager.getInstance();
+const serverEventLogger = ServerEventLogger.getInstance();
 const firstMoveMoveAnalyzer = new MoveAnalyzer();
 
 function getMoveDestination(head: Coord, move: Direction): Coord {
@@ -64,6 +68,7 @@ app.get('/', (req, res) => {
 
 app.post('/start', (req, res) => {
   const gameState: GameState = req.body;
+  serverEventLogger.recordGameActivity(gameState?.game?.id || null);
   logger.startGame(gameState);
   gameManager.registerGame(gameState);
   res.status(200).send('ok');
@@ -74,12 +79,19 @@ app.post('/move', async (req, res) => {
   const gameState: GameState = req.body;
   const gameId = gameState.game.id;
   const snakeId = gameState.you.id;
+  serverEventLogger.recordGameActivity(gameId);
 
   const game = gameManager.getGame(gameId);
   if (!game || !game.controlledSnakes.has(snakeId)) {
     gameManager.registerGame(gameState);
   }
   gameManager.updateGameState(gameId, snakeId, gameState);
+
+  // Back-fill the server-decided move for every snake from this state's lastMoves
+  // (the moves that produced THIS turn). Runs on every /move — plain or centaur —
+  // so a still-alive peer's move fills in a snake that has since died. The update
+  // key is this arriving turn (= the decision-row turn for the prior board turn).
+  decisionLogger.recordServerMoves(gameId, gameState.turn, gameState.lastMoves);
 
   const gameTimeout = gameState.game.timeout || 500;
   const turnExpiryTime = (gameState.game as any).turnExpiryTime || null;
@@ -172,8 +184,37 @@ app.post('/move', async (req, res) => {
 
 app.post('/end', (req, res) => {
   const gameState: GameState = req.body;
+
+  // Prominent, greppable diagnostics so we can confirm the (custom) game engine
+  // actually calls /end and inspect the exact shape it sends. /end is infrequent
+  // (at most once per snake per game), so logging the full payload is cheap.
+  try {
+    const snakes = gameState?.board?.snakes || [];
+    console.log('========== [/end] RECEIVED ==========');
+    console.log(
+      `[/end] game.id=${gameState?.game?.id} turn=${gameState?.turn} ruleset=${(gameState?.game as any)?.ruleset?.name}`,
+    );
+    console.log(
+      `[/end] you.id=${gameState?.you?.id} you.name=${gameState?.you?.name} you.health=${gameState?.you?.health} you.len=${gameState?.you?.body?.length}`,
+    );
+    console.log(
+      `[/end] board snakes still present=${snakes.length}: ${JSON.stringify(
+        snakes.map((s) => ({ id: s.id, name: s.name, health: s.health, len: s.body?.length })),
+      )}`,
+    );
+    console.log(`[/end] top-level keys=${JSON.stringify(Object.keys(gameState || {}))}`);
+    console.log(`[/end] raw payload=${JSON.stringify(gameState)}`);
+  } catch (e) {
+    console.error('[/end] failed to log payload shape:', e);
+  }
+
   logger.endGame(gameState);
+
+  // No final-head derivation here: a snake's authoritative final move comes from
+  // the NEXT turn's lastMoves (back-filled into server_move on every /move), not
+  // from the /end payload.
   gameManager.endGame(gameState.game.id, gameState.you.id, gameState);
+  voronoiStrategy.onGameEnd(gameState.game.id);
   res.status(200).send('ok');
 });
 
@@ -181,6 +222,7 @@ app.use(logsRouter);
 app.use(configRouter);
 app.use(playRouter);
 app.use(connectionDebugRouter);
+app.use(activityRouter);
 
 app.get('/config', (req, res) => {
   res.sendFile(path.join(__dirname, '../src/web/config.html'));
@@ -198,8 +240,20 @@ app.get('/play', (req, res) => {
   res.sendFile(path.join(__dirname, '../src/web/play.html'));
 });
 
-app.get('/play/:gameId', (req, res) => {
+// Unified game viewer: works for both live (WebSocket) and finished
+// (decision-log replay) games. See src/web/play-game.html.
+app.get('/game/:id', (req, res) => {
   res.sendFile(path.join(__dirname, '../src/web/play-game.html'));
+});
+
+// Legacy live-game URL now redirects to the unified viewer.
+app.get('/play/:gameId', (req, res) => {
+  res.redirect(302, `/game/${encodeURIComponent(req.params.gameId)}`);
+});
+
+// Server activity page: audit autoscale behavior (boot/idle/wake/shutdown).
+app.get('/activity', (req, res) => {
+  res.sendFile(path.join(__dirname, '../src/web/activity.html'));
 });
 
 app.get('/connection-debug', (req, res) => {
@@ -217,10 +271,16 @@ httpServer.listen(port, '0.0.0.0', () => {
   console.log(`Visit http://localhost:${port} for snake info`);
   console.log(`Visit http://localhost:${port}/config for configuration`);
   console.log(`Visit http://localhost:${port}/play for centaur play`);
+  serverEventLogger.recordBoot({ port, pid: process.pid });
 });
 
 async function gracefulShutdown(signal: string) {
   console.log(`${signal} received, shutting down gracefully...`);
+  // Write the shutdown event first, bounded by a short timeout so an
+  // unreachable database can never block process exit.
+  await serverEventLogger.recordShutdownAndFlush(signal);
+  gameManager.shutdown();
+  wsServer.shutdown();
   const decisionLogger = DecisionLogger.getInstance();
   await decisionLogger.shutdown();
   await ConnectionLogger.getInstance().shutdown();

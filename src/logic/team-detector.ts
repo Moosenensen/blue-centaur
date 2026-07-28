@@ -28,22 +28,29 @@ export class TeamDetector {
   }
   
   getTeammates(snake: Snake, allSnakes: Snake[]): Snake[] {
-    const myTeamKey = this.getTeamKey(snake);
+    const myTeamKey = TeamDetector.getTeamKey(snake);
     return allSnakes.filter(s => 
       s.id !== snake.id && 
-      this.getTeamKey(s) === myTeamKey
+      TeamDetector.getTeamKey(s) === myTeamKey
     );
   }
   
   getEnemySnakes(snake: Snake, allSnakes: Snake[]): Snake[] {
-    const myTeamKey = this.getTeamKey(snake);
+    const myTeamKey = TeamDetector.getTeamKey(snake);
     return allSnakes.filter(s => 
-      this.getTeamKey(s) !== myTeamKey
+      TeamDetector.getTeamKey(s) !== myTeamKey
     );
   }
 
-  private getTeamKey(snake: Snake): string {
-    // Use squad field for team detection, fallback to color, then to snake ID
+  // Single source of truth for team identity: squad field, then color, then
+  // snake ID as a last resort. Exposed statically so other components (e.g. the
+  // history viewer's games listing) can derive team membership from logged game
+  // state without duplicating the rule.
+  static getTeamKey(snake: Pick<Snake, 'id' | 'squad' | 'customizations'>): string {
     return snake.squad || snake.customizations?.color || snake.id;
+  }
+
+  private getTeamKey(snake: Snake): string {
+    return TeamDetector.getTeamKey(snake);
   }
 }
